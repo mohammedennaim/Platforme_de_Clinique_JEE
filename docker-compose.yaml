@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: clinique_app
+    ports:
+      - "8085:8080"   # Port externe 8085 -> Tomcat interne 8080
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_DATABASE=clinique_db
+      - DB_USER=clinique
+      - DB_PASSWORD=clinique123
+    networks:
+      - clinique_net
+
+  db:
+    image: postgres:15
+    container_name: clinique_db
+    restart: always
+    environment:
+      POSTGRES_USER: clinique
+      POSTGRES_PASSWORD: clinique123
+      POSTGRES_DB: clinique_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - clinique_net
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: clinique_pgadmin
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "8090:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@clinique.com
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - clinique_net
+
+networks:
+  clinique_net:
+
+volumes:
+  db_data:
+  pgadmin_data:
