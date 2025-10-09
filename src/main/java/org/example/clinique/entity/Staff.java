@@ -22,6 +22,10 @@ public class Staff {
         this.departmentAssigned = departmentAssigned;
     }
 
+    public Staff() {
+        
+    }
+
     public Long getId() {
         return id;
     }
