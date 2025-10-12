@@ -24,8 +24,29 @@ public class UserRepository {
     }
 
     public void save(User user) {
-        em.getTransaction().begin();
-        em.persist(user);
-        em.getTransaction().commit();
+        // Add validation for required fields
+        if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+            throw new IllegalArgumentException("Email cannot be null or empty");
+        }
+        if (user.getFirstName() == null || user.getFirstName().trim().isEmpty()) {
+            throw new IllegalArgumentException("First name cannot be null or empty");
+        }
+        if (user.getLastName() == null || user.getLastName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Last name cannot be null or empty");
+        }
+        if (user.getPasswordHash() == null || user.getPasswordHash().trim().isEmpty()) {
+            throw new IllegalArgumentException("Password hash cannot be null or empty");
+        }
+        if (user.getRole() == null) {
+            throw new IllegalArgumentException("Role cannot be null");
+        }
+        
+        if (findByEmail(user.getEmail()) == null){
+            em.getTransaction().begin();
+            em.persist(user);
+            em.getTransaction().commit();
+        } else {
+            System.out.println("Cette user existe déjà");
+        }
     }
 }

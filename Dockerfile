@@ -3,14 +3,13 @@ FROM maven:3.9.5-eclipse-temurin-17 AS builder
 
 WORKDIR /build
 
-# Copie la configuration Maven et télécharge les dépendances
+# Copie la configuration Maven 
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
 
 # Copie le code source
 COPY src ./src
 
-# Construit le fichier .war
+# Construit le fichier .war (les dépendances seront téléchargées pendant le build)
 RUN mvn clean package -DskipTests
 
 # === Étape 2 : image Tomcat ===

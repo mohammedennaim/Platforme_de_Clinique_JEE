@@ -1,45 +1,21 @@
 package org.example.clinique.entity;
 
 import jakarta.persistence.*;
+import org.example.clinique.entity.enums.Role;
 
 @Entity
 @Table(name = "staff", schema = "clinique")
-public class Staff {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @OneToOne
-    @JoinColumn(name = "user_id", unique = true)
-    private User user;
+public class Staff extends User {
 
     private String departmentAssigned;
 
-    public Staff(Long id, User user, String departmentAssigned) {
-        this.id = id;
-        this.user = user;
+    public Staff(Long id, String firstName, String lastName, String email, String passwordHash, Role role, Boolean isActive, String departmentAssigned) {
+        super(id, firstName, lastName, email, passwordHash, role, isActive);
         this.departmentAssigned = departmentAssigned;
     }
 
     public Staff() {
         
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
     }
 
     public String getDepartmentAssigned() {
@@ -48,5 +24,17 @@ public class Staff {
 
     public void setDepartmentAssigned(String departmentAssigned) {
         this.departmentAssigned = departmentAssigned;
+    }
+
+    @Override
+    public String toString() {
+        return "Staff{" +
+                "id=" + getId() +
+                ", departmentAssigned='" + departmentAssigned + '\'' +
+                ", firstName='" + getFirstName() + '\'' +
+                ", lastName='" + getLastName() + '\'' +
+                ", email='" + getEmail() + '\'' +
+                ", role=" + getRole() +
+                '}';
     }
 }

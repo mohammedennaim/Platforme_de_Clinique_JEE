@@ -5,13 +5,13 @@ services:
     build: .
     container_name: clinique_app
     ports:
-      - "8085:8080"   # Port externe 8085 -> Tomcat interne 8080
+      - "8085:8080"
     depends_on:
       - db
     environment:
       - DB_HOST=db
       - DB_PORT=5432
-      - DB_DATABASE=clinique_db
+      - DB_DATABASE=clinique-db
       - DB_USER=clinique
       - DB_PASSWORD=clinique123
     networks:
@@ -24,9 +24,9 @@ services:
     environment:
       POSTGRES_USER: clinique
       POSTGRES_PASSWORD: clinique123
-      POSTGRES_DB: clinique_db
+      POSTGRES_DB: clinique-db
     ports:
-      - "5433:5432"
+      - "5433:5432"        # port externe (5433) utile pour accéder depuis ton hôte, pgAdmin, etc.
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -39,11 +39,11 @@ services:
     restart: always
     depends_on:
       - db
-    ports:
-      - "8090:80"
     environment:
       - PGADMIN_DEFAULT_EMAIL=admin@clinique.com
       - PGADMIN_DEFAULT_PASSWORD=admin123
+    ports:
+      - "8090:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     networks:

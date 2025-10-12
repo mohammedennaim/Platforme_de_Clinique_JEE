@@ -1,20 +1,13 @@
 package org.example.clinique.entity;
 
 import jakarta.persistence.*;
+import org.example.clinique.entity.enums.Role;
 
 @Entity
 @Table(name = "doctors", schema = "clinique")
-public class Doctor {
+public class Doctor extends User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @OneToOne
-    @JoinColumn(name = "user_id", unique = true)
-    private User user;
-
-    @Column(nullable = false, unique = true)
+    @Column(name = "registration_number", nullable = false, unique = true)
     private String registrationNumber;
 
     private String title;
@@ -23,9 +16,8 @@ public class Doctor {
     @JoinColumn(name = "specialty_id")
     private Specialty specialty;
 
-    public Doctor(Long id, User user, String registrationNumber, String title, Specialty specialty) {
-        this.id = id;
-        this.user = user;
+    public Doctor(Long id, String firstName, String lastName, String email, String passwordHash, Role role, Boolean isActive, String registrationNumber, String title, Specialty specialty) {
+        super(id, firstName, lastName, email, passwordHash, role, isActive);
         this.registrationNumber = registrationNumber;
         this.title = title;
         this.specialty = specialty;
@@ -33,22 +25,6 @@ public class Doctor {
 
     public Doctor() {
 
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
     }
 
     public String getRegistrationNumber() {
@@ -73,5 +49,19 @@ public class Doctor {
 
     public void setSpecialty(Specialty specialty) {
         this.specialty = specialty;
+    }
+
+    @Override
+    public String toString() {
+        return "Doctor{" +
+                "id=" + getId() +
+                ", registrationNumber='" + registrationNumber + '\'' +
+                ", title='" + title + '\'' +
+                ", specialty=" + specialty +
+                ", firstName='" + getFirstName() + '\'' +
+                ", lastName='" + getLastName() + '\'' +
+                ", email='" + getEmail() + '\'' +
+                ", role=" + getRole() +
+                '}';
     }
 }

@@ -28,21 +28,28 @@ CREATE TABLE clinique.specialties (
 );
 
 CREATE TABLE clinique.doctors (
-                                  id SERIAL PRIMARY KEY,
-                                  user_id INT UNIQUE REFERENCES clinique.users(id) ON DELETE CASCADE,
+                                  id INT PRIMARY KEY REFERENCES clinique.users(id) ON DELETE CASCADE,
                                   registration_number VARCHAR(50) UNIQUE NOT NULL,
                                   title VARCHAR(50),
                                   specialty_id INT REFERENCES clinique.specialties(id) ON DELETE SET NULL
 );
 
 CREATE TABLE clinique.patients (
-                                   id SERIAL PRIMARY KEY,
-                                   user_id INT UNIQUE REFERENCES clinique.users(id) ON DELETE CASCADE,
+                                   id INT PRIMARY KEY REFERENCES clinique.users(id) ON DELETE CASCADE,
                                    cin VARCHAR(20) UNIQUE,
                                    birth_date DATE,
                                    gender VARCHAR(10) CHECK (gender IN ('MALE', 'FEMALE')),
                                    address VARCHAR(255),
                                    phone_number VARCHAR(20)
+);
+
+CREATE TABLE clinique.admins (
+                                 id INT PRIMARY KEY REFERENCES clinique.users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE clinique.staff (
+                                id INT PRIMARY KEY REFERENCES clinique.users(id) ON DELETE CASCADE,
+                                department_assigned VARCHAR(100)
 );
 
 CREATE TABLE clinique.medical_records (

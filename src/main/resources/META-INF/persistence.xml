@@ -9,12 +9,12 @@
 
     <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
 
-    <!-- ✅ لائحة الكلاسات اللي غادي تتحفظ -->
+    <!-- ✅ Classes JPA -->
     <class>org.example.clinique.entity.User</class>
-    <class>org.example.clinique.entity.Admin</class>
-    <class>org.example.clinique.entity.Staff</class>
     <class>org.example.clinique.entity.Doctor</class>
     <class>org.example.clinique.entity.Patient</class>
+    <class>org.example.clinique.entity.Admin</class>
+    <class>org.example.clinique.entity.Staff</class>
     <class>org.example.clinique.entity.Department</class>
     <class>org.example.clinique.entity.Specialty</class>
     <class>org.example.clinique.entity.Availability</class>
@@ -24,15 +24,15 @@
     <class>org.example.clinique.entity.WaitingListEntry</class>
 
     <properties>
-      <!-- ✅ إعداد الاتصال بقاعدة بيانات PostgreSQL -->
+      <!-- ✅ Connexion à la base PostgreSQL (via le réseau Docker) -->
       <property name="jakarta.persistence.jdbc.driver" value="org.postgresql.Driver"/>
-      <property name="jakarta.persistence.jdbc.url" value="jdbc:postgresql://localhost:5433/clinique_db"/>
+      <property name="jakarta.persistence.jdbc.url"
+                value="jdbc:postgresql://db:5432/clinique-db"/>
       <property name="jakarta.persistence.jdbc.user" value="clinique"/>
       <property name="jakarta.persistence.jdbc.password" value="clinique123"/>
 
-      <!-- ✅ إعدادات Hibernate -->
-
-      <property name="hibernate.connection.pool_size" value="1"/>
+      <!-- ✅ Paramètres Hibernate -->
+      <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQLDialect"/>
       <property name="hibernate.connection.provider_class"
                 value="org.hibernate.hikaricp.internal.HikariCPConnectionProvider"/>
       <property name="hibernate.hbm2ddl.auto" value="update"/>

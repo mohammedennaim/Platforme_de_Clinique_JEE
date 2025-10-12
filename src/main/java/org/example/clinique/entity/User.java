@@ -18,20 +18,20 @@ public class User {
     @Column(name = "last_name", nullable = false, length = 50)
     private String lastName;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(name ="email", nullable = false, unique = true, length = 100)
     private String email;
 
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(name = "role", nullable = false, length = 20)
     private Role role;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    public User(Long id, String firstName, String lastName, String email, String passwordHash, Role role, Boolean isActive) {
+    public User(Long id, String email, String firstName, String lastName, String passwordHash, Role role, Boolean isActive) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -99,5 +99,18 @@ public class User {
 
     public void setActive(Boolean active) {
         isActive = active;
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", firstName='" + firstName + '\'' +
+                ", lastName='" + lastName + '\'' +
+                ", email='" + email + '\'' +
+                ", passwordHash='" + passwordHash + '\'' +
+                ", role=" + role +
+                ", isActive=" + isActive +
+                '}';
     }
 }
