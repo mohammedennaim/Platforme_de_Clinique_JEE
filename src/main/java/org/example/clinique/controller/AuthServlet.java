@@ -8,6 +8,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import org.example.clinique.dto.RegistrationResult;
 import org.example.clinique.entity.Specialty;
+import org.example.clinique.entity.User;
 import org.example.clinique.entity.enums.Role;
 import org.example.clinique.repository.SpecialtyRepository;
 import org.example.clinique.service.AuthService;
@@ -64,8 +65,21 @@ public class AuthServlet extends HttpServlet {
                 String email = req.getParameter("email");
                 String password = req.getParameter("password");
                 if (authService.login(email, password)) {
+                    // Récupérer les informations complètes de l'utilisateur
+                    User user = authService.getUserByEmail(email);
                     session.setAttribute("userEmail", email);
-                    resp.sendRedirect("dashboard.jsp");
+                    session.setAttribute("user", user);
+                    
+                    // Rediriger vers le dashboard approprié selon le rôle
+                    String dashboardUrl = switch (user.getRole()) {
+                        case DOCTOR -> "dashboard-doctor.jsp";
+                        case PATIENT -> "dashboard-patient.jsp";
+                        case ADMIN -> "dashboard-admin.jsp";
+                        case STAFF -> "dashboard-staff.jsp";
+                        default -> "dashboard.jsp";
+                    };
+                    
+                    resp.sendRedirect(dashboardUrl);
                 } else {
                     req.setAttribute("error", "Email ou mot de passe invalide");
                     req.getRequestDispatcher("index.jsp").forward(req, resp);

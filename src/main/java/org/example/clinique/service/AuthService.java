@@ -31,6 +31,31 @@ public class AuthService {
         return user.getActive() && BCrypt.checkpw(plainPassword, user.getPasswordHash());
     }
 
+    public User getUserByEmail(String email) {
+        User user = repoUser.findByEmail(email);
+        if (user == null) {
+            return null;
+        }
+        
+        // Récupérer l'objet complet selon le rôle
+        switch (user.getRole()) {
+            case DOCTOR:
+                return repoDoctor.findByEmail(email);
+            case PATIENT:
+                return repoPatient.findByEmail(email);
+            case ADMIN:
+                // Pour l'admin, on peut retourner l'objet User de base
+                // car Admin n'a pas de propriétés supplémentaires
+                return user;
+            case STAFF:
+                // Pour le staff, on peut retourner l'objet User de base
+                // car Staff n'a qu'une propriété supplémentaire
+                return user;
+            default:
+                return user;
+        }
+    }
+
     public RegistrationResult register(String firstName, String lastName,
                                        String email, String password,
                                        Role role, String cin, LocalDate birthDate,

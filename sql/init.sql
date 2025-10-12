@@ -115,22 +115,22 @@ VALUES ('SPEC01','Cardiologue','Médecin du cœur',1),
        ('SPEC02','Dermatologue','Médecin de la peau',2);
 
 INSERT INTO clinique.users (first_name, last_name, email, password_hash, role)
-VALUES ('Admin','Root','admin@clinique.com','admin','ADMIN'),
-       ('Dr','Martin','martin@clinique.com','1234','DOCTOR'),
-       ('Alice','Dupont','alice@clinique.com','1234','PATIENT');
+VALUES ('Admin','Root','admin@clinique.com','$2a$10$XmaBt6d4q4tH/NcSoZYWVeib3gO/ojxuavIaLHBUlzeMNJZea/Y3W','ADMIN'),
+       ('Dr','Martin','martin@clinique.com','$2a$10$N0O6R75RCYNZYJXb.RTHa.MDKx4VEiI8i3v3DVOBW7yqxldx5XQUi','DOCTOR'),
+       ('Alice','Dupont','alice@clinique.com','$2a$10$SHO79/lizTX7/zWi3k1e1.aeOiJmBTBXRXRoqE4SoaPiOA9dBQUq.','PATIENT');
 
-INSERT INTO clinique.doctors (user_id, registration_number, title, specialty_id)
+INSERT INTO clinique.doctors (id, registration_number, title, specialty_id)
 VALUES (2,'DOC-001','Dr.',1);
 
-INSERT INTO clinique.patients (user_id, cin, birth_date, gender, address, phone_number)
+INSERT INTO clinique.patients (id, cin, birth_date, gender, address, phone_number)
 VALUES (3,'AA12345','1990-05-15','FEMALE','12 Rue Santé','0612345678');
 
 INSERT INTO clinique.medical_records (patient_id, blood_type, allergies, chronic_conditions)
-VALUES (1,'O+','Aucune','Asthme');
+VALUES (3,'O+','Aucune','Asthme');
 
 INSERT INTO clinique.availabilities (doctor_id, day_of_week, start_time, end_time, status)
-VALUES (1,'MONDAY','09:00','12:00','AVAILABLE'),
-       (1,'TUESDAY','14:00','17:00','AVAILABLE');
+VALUES (2,'MONDAY','09:00','12:00','AVAILABLE'),
+       (2,'TUESDAY','14:00','17:00','AVAILABLE');
 
 INSERT INTO clinique.appointments (doctor_id, patient_id, start_datetime, end_datetime, status, appointment_type)
-VALUES (1,1,'2025-05-01 09:00','2025-05-01 09:30','PLANNED','CONSULTATION');
+VALUES (2,3,'2025-05-01 09:00','2025-05-01 09:30','PLANNED','CONSULTATION');
