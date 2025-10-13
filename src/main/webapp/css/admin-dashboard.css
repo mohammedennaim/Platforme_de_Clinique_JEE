@@ -74,6 +74,10 @@
     transform: translateY(-4px);
   }
   
+  .stat-card h3 {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
   /* Dashboard Card */
   .dashboard-card {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -95,6 +99,24 @@
     text-decoration: none;
     background: #f9fafb;
     border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .dashboard-link::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 3px;
+    background: linear-gradient(180deg, #3b82f6, #6366f1);
+    transform: scaleY(0);
+    transition: transform 0.3s ease;
+  }
+  
+  .dashboard-link:hover::before {
+    transform: scaleY(1);
   }
   
   .dashboard-link:hover {
@@ -130,6 +152,26 @@
     text-decoration: none;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .quick-action-btn::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+  }
+  
+  .quick-action-btn:active::before {
+    width: 300px;
+    height: 300px;
   }
   
   .quick-action-btn:hover {
@@ -154,6 +196,23 @@
     border-radius: 8px;
     transition: all 0.2s ease;
     border: 1px solid transparent;
+    position: relative;
+  }
+  
+  .activity-item::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.05), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+  }
+  
+  .activity-item:hover::after {
+    transform: translateX(100%);
   }
   
   .activity-item:hover {
@@ -188,6 +247,23 @@
   
     .quick-action-btn i {
       font-size: 24px;
+    }
+  
+    #searchInput {
+      width: 0;
+      padding: 0;
+      border: none;
+    }
+  
+    #searchInput:focus {
+      width: 200px;
+      padding: 0.5rem 1rem 0.5rem 2.5rem;
+      border: 1px solid #d1d5db;
+    }
+  
+    #notificationPanel {
+      width: calc(100vw - 2rem);
+      right: 1rem;
     }
   }
   
@@ -272,6 +348,106 @@
   @media print {
     .no-print {
       display: none !important;
+    }
+  }
+  
+  /* Loader Animation */
+  .loader {
+    width: 48px;
+    height: 48px;
+    border: 5px solid #f3f4f6;
+    border-bottom-color: #3b82f6;
+    border-radius: 50%;
+    display: inline-block;
+    animation: rotation 1s linear infinite;
+  }
+  
+  @keyframes rotation {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* Tooltip Styles */
+  .tooltip {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 9999;
+    animation: fade-in 0.2s ease;
+  }
+  
+  /* Notification Panel Animation */
+  #notificationPanel {
+    animation: slide-down 0.3s ease-out;
+  }
+  
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Skeleton Loading Animation */
+  @keyframes skeleton-loading {
+    0% {
+      background-position: -200px 0;
+    }
+    100% {
+      background-position: calc(200px + 100%) 0;
+    }
+  }
+  
+  .skeleton {
+    background: linear-gradient(90deg, #f0f0f0 0px, #f8f8f8 40px, #f0f0f0 80px);
+    background-size: 200px 100%;
+    animation: skeleton-loading 1.5s infinite;
+  }
+  
+  /* Floating Animation for Icons */
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+  
+  .stat-card:hover .w-16 {
+    animation: float 2s ease-in-out infinite;
+  }
+  
+  /* Dark Mode Support */
+  @media (prefers-color-scheme: dark) {
+    body {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+  
+    .bg-white {
+      background: #1f2937 !important;
+      color: #f9fafb;
+    }
+  
+    .text-gray-800 {
+      color: #f9fafb !important;
+    }
+  
+    .text-gray-600 {
+      color: #d1d5db !important;
     }
   }
   

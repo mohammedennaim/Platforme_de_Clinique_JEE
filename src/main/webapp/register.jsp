@@ -16,7 +16,7 @@
 <body>
 <div class="box">
     <h2>Inscription</h2>
-    <form action="register" method="post">
+    <form action="${pageContext.request.contextPath}/register" method="post">
         <input type="text" name="firstName" placeholder="Prénom" required>
         <input type="text" name="lastName" placeholder="Nom" required>
         <input type="text" name="cin" placeholder="CIN" required>
@@ -54,7 +54,7 @@
         <button type="submit">Créer le compte</button>
         <p class="error"><%= request.getAttribute("error") != null ? request.getAttribute("error") : "" %></p>
     </form>
-    <p>Déjà inscrit ? <a href="index.jsp">Connexion</a></p>
+    <p>Déjà inscrit ? <a href="${pageContext.request.contextPath}/index.jsp">Connexion</a></p>
 </div>
 
 <script>

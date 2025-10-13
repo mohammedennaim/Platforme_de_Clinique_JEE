@@ -23,37 +23,16 @@ public class AuthService {
         this.repoSpecialty = new SpecialtyRepository(em);
     }
 
-    public boolean login(String email, String plainPassword) {
+    public Optional<User> login(String email, String plainPassword) {
         User user = repoUser.findByEmail(email);
         if (user == null) {
-            return false;
+            return Optional.empty();
         }
-        return user.getActive() && BCrypt.checkpw(plainPassword, user.getPasswordHash());
-    }
 
-    public User getUserByEmail(String email) {
-        User user = repoUser.findByEmail(email);
-        if (user == null) {
-            return null;
-        }
-        
-        // Récupérer l'objet complet selon le rôle
-        switch (user.getRole()) {
-            case DOCTOR:
-                return repoDoctor.findByEmail(email);
-            case PATIENT:
-                return repoPatient.findByEmail(email);
-            case ADMIN:
-                // Pour l'admin, on peut retourner l'objet User de base
-                // car Admin n'a pas de propriétés supplémentaires
-                return user;
-            case STAFF:
-                // Pour le staff, on peut retourner l'objet User de base
-                // car Staff n'a qu'une propriété supplémentaire
-                return user;
-            default:
-                return user;
-        }
+        boolean authenticated = user.getActive() &&
+                BCrypt.checkpw(plainPassword, user.getPasswordHash());
+
+        return authenticated ? Optional.of(user) : Optional.empty();
     }
 
     public RegistrationResult register(String firstName, String lastName,

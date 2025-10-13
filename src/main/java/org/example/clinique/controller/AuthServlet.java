@@ -4,11 +4,9 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import org.example.clinique.dto.RegistrationResult;
 import org.example.clinique.entity.Specialty;
-import org.example.clinique.entity.User;
 import org.example.clinique.entity.enums.Role;
 import org.example.clinique.repository.SpecialtyRepository;
 import org.example.clinique.service.AuthService;
@@ -17,7 +15,6 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 
-@WebServlet(urlPatterns = {"/login", "/register"})
 public class AuthServlet extends HttpServlet {
 
     private EntityManagerFactory emf;
@@ -64,23 +61,19 @@ public class AuthServlet extends HttpServlet {
             case "/login" -> {
                 String email = req.getParameter("email");
                 String password = req.getParameter("password");
-                if (authService.login(email, password)) {
-                    // Récupérer les informations complètes de l'utilisateur
-                    User user = authService.getUserByEmail(email);
-                    session.setAttribute("userEmail", email);
+
+                var authenticatedUser = authService.login(email, password);
+
+                if (authenticatedUser.isPresent()) {
+                    var user = authenticatedUser.get();
+                    session.setAttribute("userEmail", user.getEmail());
                     session.setAttribute("user", user);
-                    
-                    // Rediriger vers le dashboard approprié selon le rôle
-                    String dashboardUrl = switch (user.getRole()) {
-                        case DOCTOR -> "dashboard-doctor.jsp";
-                        case PATIENT -> "dashboard-patient.jsp";
-                        case ADMIN -> "dashboard-admin.jsp";
-                        case STAFF -> "dashboard-staff.jsp";
-                        default -> "dashboard.jsp";
-                    };
-                    
-                    resp.sendRedirect(dashboardUrl);
+                    session.setAttribute("role", user.getRole());
+                    resp.sendRedirect(req.getContextPath() + "/dashboard");
                 } else {
+                    session.removeAttribute("user");
+                    session.removeAttribute("userEmail");
+                    session.removeAttribute("role");
                     req.setAttribute("error", "Email ou mot de passe invalide");
                     req.getRequestDispatcher("index.jsp").forward(req, resp);
                 }

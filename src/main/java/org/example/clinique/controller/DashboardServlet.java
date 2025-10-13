@@ -1,17 +1,14 @@
 package org.example.clinique.controller;
 
 import jakarta.servlet.ServletException;
-import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.example.clinique.entity.User;
-import org.example.clinique.entity.enums.Role;
 
 import java.io.IOException;
 
-@WebServlet("/dashboard")
 public class DashboardServlet extends HttpServlet {
 
     @Override
@@ -23,19 +20,19 @@ public class DashboardServlet extends HttpServlet {
         User user = (User) session.getAttribute("user");
         
         if (email == null || user == null) {
-            resp.sendRedirect("index.jsp");
+            resp.sendRedirect(req.getContextPath() + "/index.jsp");
             return;
         }
         
         // Rediriger vers le dashboard approprié selon le rôle
         String dashboardUrl = switch (user.getRole()) {
-            case DOCTOR -> "dashboard-doctor.jsp";
-            case PATIENT -> "dashboard-patient.jsp";
-            case ADMIN -> "dashboard-admin.jsp";
-            case STAFF -> "dashboard-staff.jsp";
-            default -> "dashboard.jsp";
+            case DOCTOR -> "/dashboard-doctor.jsp";
+            case PATIENT -> "/dashboard-patient.jsp";
+            case ADMIN -> "/dashboard-admin.jsp";
+            case STAFF -> "/dashboard-staff.jsp";
+            default -> "/dashboard.jsp";
         };
         
-        resp.sendRedirect(dashboardUrl);
+        resp.sendRedirect(req.getContextPath() + dashboardUrl);
     }
 }

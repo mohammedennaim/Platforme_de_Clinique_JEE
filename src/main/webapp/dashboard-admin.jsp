@@ -17,6 +17,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/admin-dashboard.css">
+    <script src="js/admin-dashboard.js" defer></script>
 </head>
 <body class="bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 min-h-screen">
     
@@ -39,16 +40,23 @@
                 </div>
                 
                 <div class="flex items-center space-x-4">
+                    <!-- Search Bar -->
+                    <div class="hidden md:block relative">
+                        <input type="text" id="searchInput" placeholder="Rechercher..." 
+                               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                    
                     <!-- Notifications -->
-                    <button class="relative p-2 text-gray-600 hover:text-blue-600 transition-colors">
+                    <button id="notificationBtn" class="relative p-2 text-gray-600 hover:text-blue-600 transition-colors">
                         <i class="fas fa-bell text-xl"></i>
-                        <span class="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                        <span id="notificationBadge" class="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
                             5
                         </span>
                     </button>
                     
                     <!-- User Profile -->
-                    <div class="flex items-center space-x-3 border-l pl-4">
+                    <div class="flex items-center space-x-3 border-l pl-4 cursor-pointer" id="userProfileBtn">
                         <div class="text-right">
                             <p class="text-sm font-semibold text-gray-800"><%= admin.getFirstName() %> <%= admin.getLastName() %></p>
                             <p class="text-xs text-gray-500"><%= admin.getEmail() %></p>
@@ -61,6 +69,17 @@
             </div>
         </div>
     </nav>
+
+    <!-- Notification Dropdown Panel -->
+    <div id="notificationPanel" class="hidden fixed top-20 right-4 w-96 bg-white rounded-xl shadow-2xl z-50 border border-gray-200 max-h-96 overflow-y-auto">
+        <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="font-bold text-gray-800">Notifications</h3>
+            <button id="markAllRead" class="text-sm text-blue-600 hover:text-blue-700">Tout marquer comme lu</button>
+        </div>
+        <div id="notificationList" class="divide-y divide-gray-100">
+            <!-- Notifications will be dynamically inserted here -->
+        </div>
+    </div>
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -77,7 +96,7 @@
                         <span class="px-4 py-1 bg-white bg-opacity-20 rounded-full text-sm font-semibold backdrop-blur-sm">
                             <i class="fas fa-shield-alt mr-2"></i>Administrateur
                         </span>
-                        <span class="px-4 py-1 bg-white bg-opacity-20 rounded-full text-sm backdrop-blur-sm">
+                        <span id="currentDateTime" class="px-4 py-1 bg-white bg-opacity-20 rounded-full text-sm backdrop-blur-sm">
                             <i class="fas fa-clock mr-2"></i><%= new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date()) %>
                         </span>
                     </div>
@@ -92,9 +111,9 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-500 text-sm font-medium mb-1">Total Patients</p>
-                        <h3 class="text-3xl font-bold text-gray-800">1,234</h3>
+                        <h3 id="totalPatients" class="text-3xl font-bold text-gray-800" data-target="1234">0</h3>
                         <p class="text-green-500 text-sm mt-2">
-                            <i class="fas fa-arrow-up"></i> +12% ce mois
+                            <i class="fas fa-arrow-up"></i> <span id="patientsGrowth">+12%</span> ce mois
                         </p>
                     </div>
                     <div class="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
@@ -108,9 +127,9 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-500 text-sm font-medium mb-1">RDV Aujourd'hui</p>
-                        <h3 class="text-3xl font-bold text-gray-800">48</h3>
+                        <h3 id="todayAppointments" class="text-3xl font-bold text-gray-800" data-target="48">0</h3>
                         <p class="text-blue-500 text-sm mt-2">
-                            <i class="fas fa-calendar-check"></i> 12 en attente
+                            <i class="fas fa-calendar-check"></i> <span id="pendingAppointments">12</span> en attente
                         </p>
                     </div>
                     <div class="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center">
@@ -124,9 +143,9 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-500 text-sm font-medium mb-1">Médecins Actifs</p>
-                        <h3 class="text-3xl font-bold text-gray-800">24</h3>
+                        <h3 id="activeDoctors" class="text-3xl font-bold text-gray-800" data-target="24">0</h3>
                         <p class="text-purple-500 text-sm mt-2">
-                            <i class="fas fa-user-md"></i> 8 spécialités
+                            <i class="fas fa-user-md"></i> <span id="specialtiesCount">8</span> spécialités
                         </p>
                     </div>
                     <div class="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center">
@@ -140,9 +159,9 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-500 text-sm font-medium mb-1">Revenus du Mois</p>
-                        <h3 class="text-3xl font-bold text-gray-800">45,890 DH</h3>
+                        <h3 id="monthlyRevenue" class="text-3xl font-bold text-gray-800" data-target="45890">0</h3>
                         <p class="text-green-500 text-sm mt-2">
-                            <i class="fas fa-arrow-up"></i> +8.5% vs mois dernier
+                            <i class="fas fa-arrow-up"></i> <span id="revenueGrowth">+8.5%</span> vs mois dernier
                         </p>
                     </div>
                     <div class="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center">
@@ -380,7 +399,7 @@
                     <i class="fas fa-sliders-h text-3xl mb-2"></i>
                     <span class="text-sm font-semibold">Paramètres avancés</span>
                 </a>
-                <a href="logout" class="quick-action-btn bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700">
+                <a href="<%= request.getContextPath() %>/logout" class="quick-action-btn bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700">
                     <i class="fas fa-sign-out-alt text-3xl mb-2"></i>
                     <span class="text-sm font-semibold">Se déconnecter</span>
                 </a>
@@ -389,11 +408,16 @@
 
         <!-- Recent Activity -->
         <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                <i class="fas fa-history text-blue-500 mr-3"></i>
-                Activité Récente
-            </h3>
-            <div class="space-y-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-history text-blue-500 mr-3"></i>
+                    Activité Récente
+                </h3>
+                <button id="refreshActivity" class="text-blue-600 hover:text-blue-700 transition-colors">
+                    <i class="fas fa-sync-alt"></i> Actualiser
+                </button>
+            </div>
+            <div id="activityList" class="space-y-4">
                 <div class="activity-item">
                     <div class="activity-icon bg-green-100">
                         <i class="fas fa-user-plus text-green-600"></i>
@@ -437,6 +461,19 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2">
+        <!-- Toast notifications will be dynamically inserted here -->
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl p-8 flex flex-col items-center">
+            <div class="loader mb-4"></div>
+            <p class="text-gray-700 font-semibold">Chargement...</p>
+        </div>
     </div>
 
     <!-- Footer -->

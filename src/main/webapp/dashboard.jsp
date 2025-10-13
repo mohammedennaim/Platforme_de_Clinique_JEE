@@ -75,12 +75,12 @@
             <script>
                 // Redirection automatique après 3 secondes
                 setTimeout(function() {
-                    window.location.href = 'dashboard';
+                    window.location.href = '<%= request.getContextPath() %>/dashboard';
                 }, 3000);
             </script>
             
-            <a href="dashboard" class="btn">Accéder à mon dashboard</a>
-            <a href="logout" class="btn btn-danger">Se déconnecter</a>
+            <a href="<%= request.getContextPath() %>/dashboard" class="btn">Accéder à mon dashboard</a>
+            <a href="<%= request.getContextPath() %>/logout" class="btn btn-danger">Se déconnecter</a>
         </div>
     </div>
 </body>

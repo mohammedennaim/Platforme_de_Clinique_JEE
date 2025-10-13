@@ -108,7 +108,7 @@
     <p>Plateforme de gestion médicale</p>
   </div>
   
-  <form action="login" method="post">
+  <form action="${pageContext.request.contextPath}/login" method="post">
     <div class="form-group">
       <input type="email" name="email" placeholder="Adresse email" required>
     </div>
@@ -127,7 +127,7 @@
   </form>
   
   <div class="register-link">
-    <p>Pas encore inscrit? <a href="register.jsp">Créer un compte</a></p>
+  <p>Pas encore inscrit? <a href="${pageContext.request.contextPath}/register">Créer un compte</a></p>
   </div>
   
   <div class="role-info">
@@ -135,6 +135,7 @@
     • Admin: admin@clinique.com / admin<br>
     • Médecin: martin@clinique.com / 1234<br>
     • Patient: alice@clinique.com / 1234<br>
+    • Personnel: marie@clinique.com / 1234<br>
     <small style="color: #95a5a6; margin-top: 10px; display: block;">
       Les mots de passe sont maintenant sécurisés avec BCrypt
     </small>

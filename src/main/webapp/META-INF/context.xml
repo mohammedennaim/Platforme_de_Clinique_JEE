@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context reloadable="true">
+    <Resource
+        name="jdbc/CliniqueDS"
+        auth="Container"
+        type="jakarta.sql.DataSource"
+        driverClassName="org.postgresql.Driver"
+        url="jdbc:postgresql://db:5432/clinique-db"
+        username="clinique"
+        password="clinique123"
+        maxTotal="20"
+        maxIdle="10"
+        maxWaitMillis="10000"
+        validationQuery="SELECT 1"/>
+</Context>
+
+
+
