@@ -127,7 +127,7 @@
   </form>
   
   <div class="register-link">
-  <p>Pas encore inscrit? <a href="/register.jsp">Créer un compte</a></p>
+  <p>Pas encore inscrit? <a href="${pageContext.request.contextPath}/register">Créer un compte</a></p>
   </div>
   
   <div class="role-info">
@@ -136,9 +136,7 @@
     • Médecin: martin@clinique.com / doctor123<br>
     • Patient: alice@clinique.com / patient123<br>
     • Personnel: staff@clinique.com / staff123<br>
-    <small style="color: #95a5a6; margin-top: 10px; display: block;">
-      Les mots de passe sont stockés chiffrés (BCrypt) côté serveur
-    </small>
+    
   </div>
 </div>
 </body>

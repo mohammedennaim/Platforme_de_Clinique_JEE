@@ -2,6 +2,7 @@ package org.example.clinique.repository;
 
 import jakarta.persistence.EntityManager;
 import org.example.clinique.entity.Doctor;
+import java.util.List;
 
 public class DoctorRepository {
     private final EntityManager em;
@@ -40,5 +41,10 @@ public class DoctorRepository {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    public List<Doctor> findAll() {
+        return em.createQuery("SELECT d FROM Doctor d ORDER BY d.lastName", Doctor.class)
+                .getResultList();
     }
 }

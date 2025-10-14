@@ -26,6 +26,12 @@
         <servlet-class>org.example.clinique.controller.LogoutServlet</servlet-class>
     </servlet>
 
+    <servlet>
+        <servlet-name>AppointmentServlet</servlet-name>
+        <servlet-class>org.example.clinique.controller.AppointmentServlet</servlet-class>
+        <load-on-startup>3</load-on-startup>
+    </servlet>
+
     <servlet-mapping>
         <servlet-name>AuthServlet</servlet-name>
         <url-pattern>/login</url-pattern>
@@ -44,5 +50,10 @@
     <servlet-mapping>
         <servlet-name>LogoutServlet</servlet-name>
         <url-pattern>/logout</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>AppointmentServlet</servlet-name>
+        <url-pattern>/appointments</url-pattern>
     </servlet-mapping>
 </web-app>

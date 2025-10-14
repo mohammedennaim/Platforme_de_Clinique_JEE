@@ -43,7 +43,7 @@ public class AuthServlet extends HttpServlet {
             }
         } else {
             // Pour les autres chemins, rediriger vers la page appropriée
-            resp.sendRedirect("index.jsp");
+            resp.sendRedirect(req.getContextPath() + "/index.jsp");
         }
     }
 
@@ -69,7 +69,7 @@ public class AuthServlet extends HttpServlet {
                     session.setAttribute("userEmail", user.getEmail());
                     session.setAttribute("user", user);
                     session.setAttribute("role", user.getRole());
-                    resp.sendRedirect("/dashboard");
+                    resp.sendRedirect(req.getContextPath() + "/dashboard");
                 } else {
                     session.removeAttribute("user");
                     session.removeAttribute("userEmail");

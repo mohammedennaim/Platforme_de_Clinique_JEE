@@ -99,7 +99,7 @@
         </nav>
 
         <div class="sidebar-footer">
-            <a href="<%= request.getContextPath() %>/logout" class="logout-btn">
+            <a href="logout" class="logout-btn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <polyline points="16 17 21 12 16 7"></polyline>
@@ -145,6 +145,7 @@
                     </div>
                     <div class="user-info">
                         <span class="user-name"><%= patient.getFirstName() %> <%= patient.getLastName() %></span>
+
                         <span class="user-role">Patient</span>
                     </div>
                 </div>
