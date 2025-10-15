@@ -17,7 +17,7 @@ public class AvailabilityRepository {
 
     public List<Availability> findActiveByDoctor(Long doctorId) {
         TypedQuery<Availability> query = em.createQuery(
-                "SELECT av FROM Availability av WHERE av.doctor.id = :doctorId AND av.status = :status",
+                "SELECT av FROM Availability av JOIN FETCH av.doctor WHERE av.doctor.id = :doctorId AND av.status = :status",
                 Availability.class
         );
         query.setParameter("doctorId", doctorId);
@@ -27,9 +27,20 @@ public class AvailabilityRepository {
 
     public List<Availability> findAllActive() {
         TypedQuery<Availability> query = em.createQuery(
-                "SELECT av FROM Availability av WHERE av.status = :status",
+                "SELECT av FROM Availability av JOIN FETCH av.doctor WHERE av.status = :status AND (av.availabilityDate IS NULL OR av.availabilityDate >= CURRENT_DATE)",
                 Availability.class
         );
+        query.setParameter("status", AvailabilityStatus.AVAILABLE);
+        return query.getResultList();
+    }
+
+    public List<Availability> findByDoctorAndDate(Long doctorId, java.time.LocalDate date) {
+        TypedQuery<Availability> query = em.createQuery(
+                "SELECT av FROM Availability av JOIN FETCH av.doctor WHERE av.doctor.id = :doctorId AND av.availabilityDate = :date AND av.status = :status",
+                Availability.class
+        );
+        query.setParameter("doctorId", doctorId);
+        query.setParameter("date", date);
         query.setParameter("status", AvailabilityStatus.AVAILABLE);
         return query.getResultList();
     }

@@ -279,6 +279,8 @@ public class AppointmentServlet extends HttpServlet {
         builder.append(',');
         builder.append("\"doctorId\":").append(availability.getDoctorId());
         builder.append(',');
+        builder.append("\"availabilityDate\":").append(availability.getAvailabilityDate() != null ? "\"" + escapeJson(availability.getAvailabilityDate()) + "\"" : "null");
+        builder.append(',');
         builder.append("\"dayOfWeek\":\"").append(escapeJson(availability.getDayOfWeek())).append("\"");
         builder.append(',');
         builder.append("\"startTime\":\"").append(escapeJson(availability.getStartTime())).append("\"");

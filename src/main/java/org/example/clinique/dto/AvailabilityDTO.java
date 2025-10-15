@@ -3,6 +3,7 @@ package org.example.clinique.dto;
 public class AvailabilityDTO {
     private Long id;
     private Long doctorId;
+    private String availabilityDate;
     private String dayOfWeek;
     private String startTime;
     private String endTime;
@@ -11,9 +12,10 @@ public class AvailabilityDTO {
     public AvailabilityDTO() {
     }
 
-    public AvailabilityDTO(Long id, Long doctorId, String dayOfWeek, String startTime, String endTime, String status) {
+    public AvailabilityDTO(Long id, Long doctorId, String availabilityDate, String dayOfWeek, String startTime, String endTime, String status) {
         this.id = id;
         this.doctorId = doctorId;
+        this.availabilityDate = availabilityDate;
         this.dayOfWeek = dayOfWeek;
         this.startTime = startTime;
         this.endTime = endTime;
@@ -34,6 +36,14 @@ public class AvailabilityDTO {
 
     public void setDoctorId(Long doctorId) {
         this.doctorId = doctorId;
+    }
+
+    public String getAvailabilityDate() {
+        return availabilityDate;
+    }
+
+    public void setAvailabilityDate(String availabilityDate) {
+        this.availabilityDate = availabilityDate;
     }
 
     public String getDayOfWeek() {

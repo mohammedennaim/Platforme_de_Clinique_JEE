@@ -2,6 +2,7 @@ package org.example.clinique.entity;
 
 import org.example.clinique.entity.enums.AvailabilityStatus;
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalTime;
 
 @Entity
@@ -16,19 +17,26 @@ public class Availability {
     @JoinColumn(name = "doctor_id")
     private Doctor doctor;
 
+    @Column(name = "availability_date")
+    private LocalDate availabilityDate;
+
     @Column(length = 10)
     private String dayOfWeek;
 
+    @Column(name = "start_time")
     private LocalTime startTime;
+    
+    @Column(name = "end_time")
     private LocalTime endTime;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private AvailabilityStatus status = AvailabilityStatus.AVAILABLE;
 
-    public Availability(Long id, Doctor doctor, String dayOfWeek, LocalTime startTime, LocalTime endTime, AvailabilityStatus status) {
+    public Availability(Long id, Doctor doctor, LocalDate availabilityDate, String dayOfWeek, LocalTime startTime, LocalTime endTime, AvailabilityStatus status) {
         this.id = id;
         this.doctor = doctor;
+        this.availabilityDate = availabilityDate;
         this.dayOfWeek = dayOfWeek;
         this.startTime = startTime;
         this.endTime = endTime;
@@ -53,6 +61,14 @@ public class Availability {
 
     public void setDoctor(Doctor doctor) {
         this.doctor = doctor;
+    }
+
+    public LocalDate getAvailabilityDate() {
+        return availabilityDate;
+    }
+
+    public void setAvailabilityDate(LocalDate availabilityDate) {
+        this.availabilityDate = availabilityDate;
     }
 
     public String getDayOfWeek() {

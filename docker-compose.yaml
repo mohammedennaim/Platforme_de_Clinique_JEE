@@ -6,10 +6,8 @@ services:
     container_name: clinique_app
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_started
-      builder:
-        condition: service_healthy
+      - db
+      - builder          # on ne dépend plus du "service_healthy", juste du démarrage
     ports:
       - "8085:8080"
     environment:
@@ -18,11 +16,13 @@ services:
       - DB_DATABASE=clinique-db
       - DB_USER=clinique
       - DB_PASSWORD=clinique123
-      - CATALINA_OPTS=-Djava.security.egd=file:/dev/./urandom -Dorg.apache.tomcat.util.scan.StandardJarScanFilter.jarsToSkip=*.jar -Dorg.apache.tomcat.util.scan.StandardJarScanFilter.jarsToScan=ROOT.jar
     volumes:
       - ./src/main/webapp:/usr/local/tomcat/webapps/ROOT
       - ./target/clinique-digitale-1.0-SNAPSHOT/WEB-INF/lib:/usr/local/tomcat/webapps/ROOT/WEB-INF/lib
-      - class_data:/usr/local/tomcat/webapps/ROOT/WEB-INF/classes
+      - ./libs/special-lib.jar:/usr/local/tomcat/webapps/ROOT/WEB-INF/lib/special-lib.jar
+      - ./target/classes:/usr/local/tomcat/webapps/ROOT/WEB-INF/classes
+    command: >
+      bash -c "rm -f /usr/local/tomcat/webapps/ROOT.war && catalina.sh run"
     networks:
       - clinique_net
 
@@ -50,29 +50,45 @@ services:
     volumes:
       - .:/usr/src/app
       - ./m2_cache:/root/.m2
-      - class_data:/usr/src/app/target/classes
     command: >
       bash -c "
+        echo '⚙️  Build initial package (libs + classes)...' &&
         mvn -q -DskipTests -T 1C package || true && \
+        echo '👀 Watch & recompile every 2s...' && \
         while true; do \
           sleep 2; \
           mvn -q -DskipTests -o -T 1C compile >/dev/null 2>&1; \
         done
       "
-    networks:
-      - clinique_net
+    # healthcheck plus léger et plus rapide (facultatif)
     healthcheck:
-      test: ["CMD-SHELL", "test -d /usr/src/app/target/classes/org/example/clinique/controller"]
+      test: ["CMD-SHELL", "test -d /usr/src/app/target/classes"]
       interval: 5s
       timeout: 3s
       start_period: 10s
-      retries: 10
+      retries: 5
+    networks:
+      - clinique_net
 
-  
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: clinique_pgadmin
+    restart: always
+    depends_on:
+      - db
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@clinique.com
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+    ports:
+      - "8090:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - clinique_net
 
 networks:
   clinique_net:
 
 volumes:
   db_data:
-  class_data:
+  pgadmin_data:

@@ -32,6 +32,11 @@
         <load-on-startup>3</load-on-startup>
     </servlet>
 
+    <servlet>
+        <servlet-name>ReservationServlet</servlet-name>
+        <servlet-class>org.example.clinique.controller.ReservationServlet</servlet-class>
+    </servlet>
+
     <servlet-mapping>
         <servlet-name>AuthServlet</servlet-name>
         <url-pattern>/login</url-pattern>
@@ -55,5 +60,10 @@
     <servlet-mapping>
         <servlet-name>AppointmentServlet</servlet-name>
         <url-pattern>/appointments</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>ReservationServlet</servlet-name>
+        <url-pattern>/reserver</url-pattern>
     </servlet-mapping>
 </web-app>

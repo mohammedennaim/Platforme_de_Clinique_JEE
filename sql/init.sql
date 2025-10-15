@@ -63,6 +63,7 @@ CREATE TABLE clinique.medical_records (
 CREATE TABLE clinique.availabilities (
                                          id SERIAL PRIMARY KEY,
                                          doctor_id INT REFERENCES clinique.doctors(id) ON DELETE CASCADE,
+                                         availability_date DATE,
                                          day_of_week VARCHAR(10)
                                              CHECK (day_of_week IN ('MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY')),
                                          start_time TIME NOT NULL,
@@ -117,6 +118,7 @@ VALUES ('SPEC01','Cardiologue','Médecin du cœur',1),
 INSERT INTO clinique.users (first_name, last_name, email, password_hash, role)
 VALUES ('Admin','Root','admin@clinique.com','$2a$10$4oGMsQep6vE8JrF9ETR9ZOqDqTbexATG1MQDnoZHW3Tz9851wC3R.','ADMIN'),
        ('Dr','Martin','martin@clinique.com','$2a$10$me0uASVkcrjJ1hac4nYio.Eh8tKYY5vw6wrKatiEMeRNSzGBd9NiK','DOCTOR'),
+       ('Dr','Dubois','dubois@clinique.com','$2a$10$me0uASVkcrjJ1hac4nYio.Eh8tKYY5vw6wrKatiEMeRNSzGBd9NiK','DOCTOR'),
        ('Alice','Dupont','alice@clinique.com','$2a$10$3sgi5a2vl/TbMZeEz6DD0e4alX/mN0rOBx0EAwVnAylKVv2eKH7wK','PATIENT'),
        ('Sami','Benali','staff@clinique.com','$2a$10$mUC7U0sGaGkaleuVOqewP./DjGzu7F3Pn/wJv9xSYieeDbhHc.hUG','STAFF');
 
@@ -124,20 +126,62 @@ INSERT INTO clinique.admins (id)
 VALUES (1);
 
 INSERT INTO clinique.doctors (id, registration_number, title, specialty_id)
-VALUES (2,'DOC-001','Dr.',1);
+VALUES (2,'DOC-001','Dr.',1),
+       (3,'DOC-002','Dr.',2);
 
 INSERT INTO clinique.patients (id, cin, birth_date, gender, address, phone_number)
-VALUES (3,'AA12345','1990-05-15','FEMALE','12 Rue Santé','0612345678');
+VALUES (4,'AA12345','1990-05-15','FEMALE','12 Rue Santé','0612345678');
 
 INSERT INTO clinique.staff (id, department_assigned)
-VALUES (4,'Accueil');
+VALUES (5,'Accueil');
 
 INSERT INTO clinique.medical_records (patient_id, blood_type, allergies, chronic_conditions)
-VALUES (3,'O+','Aucune','Asthme');
+VALUES (4,'O+','Aucune','Asthme');
 
-INSERT INTO clinique.availabilities (doctor_id, day_of_week, start_time, end_time, status)
-VALUES (2,'MONDAY','09:00','12:00','AVAILABLE'),
-       (2,'TUESDAY','14:00','17:00','AVAILABLE');
+-- Generate availabilities for the next 90 days (Monday to Friday only)
+-- For Dr. Martin (Cardiologue)
+INSERT INTO clinique.availabilities (doctor_id, availability_date, day_of_week, start_time, end_time, status)
+SELECT 
+    2 as doctor_id,
+    date_series::date as availability_date,
+    CASE EXTRACT(DOW FROM date_series)
+        WHEN 1 THEN 'MONDAY'
+        WHEN 2 THEN 'TUESDAY'
+        WHEN 3 THEN 'WEDNESDAY'
+        WHEN 4 THEN 'THURSDAY'
+        WHEN 5 THEN 'FRIDAY'
+    END as day_of_week,
+    '09:00'::time as start_time,
+    '17:00'::time as end_time,
+    'AVAILABLE' as status
+FROM generate_series(
+    CURRENT_DATE,
+    CURRENT_DATE + INTERVAL '90 days',
+    '1 day'::interval
+) date_series
+WHERE EXTRACT(DOW FROM date_series) BETWEEN 1 AND 5;  -- Monday to Friday only
+
+-- For Dr. Dubois (Dermatologue)
+INSERT INTO clinique.availabilities (doctor_id, availability_date, day_of_week, start_time, end_time, status)
+SELECT 
+    3 as doctor_id,
+    date_series::date as availability_date,
+    CASE EXTRACT(DOW FROM date_series)
+        WHEN 1 THEN 'MONDAY'
+        WHEN 2 THEN 'TUESDAY'
+        WHEN 3 THEN 'WEDNESDAY'
+        WHEN 4 THEN 'THURSDAY'
+        WHEN 5 THEN 'FRIDAY'
+    END as day_of_week,
+    '09:00'::time as start_time,
+    '17:00'::time as end_time,
+    'AVAILABLE' as status
+FROM generate_series(
+    CURRENT_DATE,
+    CURRENT_DATE + INTERVAL '90 days',
+    '1 day'::interval
+) date_series
+WHERE EXTRACT(DOW FROM date_series) BETWEEN 1 AND 5;  -- Monday to Friday only
 
 INSERT INTO clinique.appointments (doctor_id, patient_id, start_datetime, end_datetime, status, appointment_type)
-VALUES (2,3,'2025-05-01 09:00','2025-05-01 09:30','PLANNED','CONSULTATION');
+VALUES (2,4,'2025-10-15 10:00','2025-10-15 10:30','PLANNED','CONSULTATION');

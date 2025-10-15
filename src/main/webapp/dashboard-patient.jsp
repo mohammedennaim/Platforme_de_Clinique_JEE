@@ -144,9 +144,9 @@
                         <span><%= patient.getFirstName().substring(0, 1) %><%= patient.getLastName().substring(0, 1) %></span>
                     </div>
                     <div class="user-info">
+                        <span class="user-role">Patient</span>
                         <span class="user-name"><%= patient.getFirstName() %> <%= patient.getLastName() %></span>
 
-                        <span class="user-role">Patient</span>
                     </div>
                 </div>
             </div>
@@ -373,13 +373,13 @@
         <div class="content-section" id="section-appointments">
             <div class="section-header">
                 <h2>Mes rendez-vous</h2>
-                <button class="primary-btn">
+                <a href="${pageContext.request.contextPath}/reserver" class="primary-btn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                     Nouveau rendez-vous
-                </button>
+                </a>
             </div>
             <div class="appointments-grid" id="appointmentsGrid">
                 <!-- Appointments will be loaded dynamically -->

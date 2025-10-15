@@ -66,6 +66,7 @@ public final class AppointmentMapper {
         return new AvailabilityDTO(
                 availability.getId(),
                 availability.getDoctor() != null ? availability.getDoctor().getId() : null,
+                availability.getAvailabilityDate() != null ? availability.getAvailabilityDate().toString() : null,
                 availability.getDayOfWeek(),
                 availability.getStartTime() != null ? availability.getStartTime().toString() : null,
                 availability.getEndTime() != null ? availability.getEndTime().toString() : null,
