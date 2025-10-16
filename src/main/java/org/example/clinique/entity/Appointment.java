@@ -21,15 +21,20 @@ public class Appointment {
     @JoinColumn(name = "patient_id")
     private Patient patient;
 
+    @JoinColumn(name = "start_datetime")
     private LocalDateTime startDatetime;
+    @JoinColumn(name = "end_datetime")
     private LocalDateTime endDatetime;
 
     @Enumerated(EnumType.STRING)
+    @JoinColumn(name = "status")
     private AppointmentStatus status = AppointmentStatus.PLANNED;
 
     @Enumerated(EnumType.STRING)
+    @JoinColumn(name = "appointment_type")
     private AppointmentType appointmentType;
 
+    @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public Appointment(Long id, Doctor doctor, Patient patient, LocalDateTime startDatetime, LocalDateTime endDatetime, AppointmentStatus status, AppointmentType appointmentType, LocalDateTime createdAt) {

@@ -6,6 +6,7 @@ import org.example.clinique.entity.Availability;
 import org.example.clinique.entity.enums.AvailabilityStatus;
 
 import java.util.List;
+import java.util.Optional;
 
 public class AvailabilityRepository {
 
@@ -15,18 +16,32 @@ public class AvailabilityRepository {
         this.em = em;
     }
 
-    public List<Availability> findActiveByDoctor(Long doctorId) {
+    public List<Availability> findAvailabilitiesByDoctor(Long doctorId) {
         TypedQuery<Availability> query = em.createQuery(
                 "SELECT av FROM Availability av JOIN FETCH av.doctor " +
                 "WHERE av.doctor.id = :doctorId AND av.status = :status " +
                 "AND (av.availabilityDate > CURRENT_DATE " +
-                "OR (av.availabilityDate = CURRENT_DATE AND av.startTime >= CURRENT_TIME))" +
+                "     OR (av.availabilityDate = CURRENT_DATE AND av.startTime >= CURRENT_TIME)) " +
                 "ORDER BY av.availabilityDate ASC, av.startTime ASC",
                 Availability.class
         );
         query.setParameter("doctorId", doctorId);
         query.setParameter("status", AvailabilityStatus.AVAILABLE);
         return query.getResultList();
+    }
+    
+    public Optional<Availability> findAvailabilityByDoctor(Long doctorId) {
+        TypedQuery<Availability> query = em.createQuery(
+                "SELECT av FROM Availability av JOIN FETCH av.doctor " +
+                "WHERE av.doctor.id = :doctorId AND av.status = :status " +
+                "AND (av.availabilityDate > CURRENT_DATE " +
+                "     OR (av.availabilityDate = CURRENT_DATE AND av.startTime >= CURRENT_TIME)) " +
+                "ORDER BY av.availabilityDate ASC, av.startTime ASC",
+                Availability.class
+        );
+        query.setParameter("doctorId", doctorId);
+        query.setParameter("status", AvailabilityStatus.AVAILABLE);
+        return query.getResultStream().findFirst();
     }
 
     public List<Availability> findAllActive() {

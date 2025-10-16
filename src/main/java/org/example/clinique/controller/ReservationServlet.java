@@ -12,9 +12,7 @@ import org.example.clinique.dto.AppointmentRequestDTO;
 import org.example.clinique.dto.AppointmentResponseDTO;
 import org.example.clinique.dto.AvailabilityDTO;
 import org.example.clinique.dto.DoctorSummaryDTO;
-import org.example.clinique.dto.NextAvailabilityDTO;
 import org.example.clinique.entity.Appointment;
-import org.example.clinique.entity.Availability;
 import org.example.clinique.entity.Doctor;
 import org.example.clinique.entity.Patient;
 import org.example.clinique.entity.User;
@@ -214,24 +212,25 @@ public class ReservationServlet extends HttpServlet {
                 .map(AppointmentMapper::toResponseDTO)
                 .collect(Collectors.toList());
 
-        List<NextAvailabilityDTO> nextAvailabilities = new ArrayList<>();
+        // Récupérer TOUTES les disponibilités futures avec time slots pour chaque médecin
+        List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> allAvailabilitiesWithSlots = new ArrayList<>();
         for (DoctorSummaryDTO doctor : doctorSummaries) {
-            Availability nextAvail = appointmentService.getNextAvailabilityForDoctor(doctor.getId());
-            if (nextAvail != null) {
-                nextAvailabilities.add(AppointmentMapper.toNextAvailabilityDTO(nextAvail));
+            List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> doctorAvailabilities = 
+                appointmentService.getAllAvailabilityTimeSlotsForDoctor(doctor.getId());
+            if (doctorAvailabilities != null && !doctorAvailabilities.isEmpty()) {
+                allAvailabilitiesWithSlots.addAll(doctorAvailabilities);
             }
         }
-        // System.out.println("Next availabilities 2: " + buildNextAvailabilitiesJson(nextAvailabilities));
 
         req.setAttribute("doctorSummaries", doctorSummaries);
         req.setAttribute("availabilityDTOs", availabilityDTOs);
         req.setAttribute("appointmentDTOs", appointmentDTOs);
-        req.setAttribute("nextAvailabilities", nextAvailabilities);
+        req.setAttribute("allAvailabilitiesWithSlots", allAvailabilitiesWithSlots);
         req.setAttribute("appointmentTypes", AppointmentType.values());
         req.setAttribute("availabilityJson", buildAvailabilityJson(availabilityDTOs));
         req.setAttribute("doctorsJson", buildDoctorsJson(doctorSummaries));
         req.setAttribute("appointmentsJson", buildAppointmentsJson(appointmentDTOs));
-        req.setAttribute("nextAvailabilitiesJson", buildNextAvailabilitiesJson(nextAvailabilities));
+        req.setAttribute("nextAvailabilitiesJson", buildAvailabilityTimeSlotsJson(allAvailabilitiesWithSlots));
     }
 
     private List<DoctorSummaryDTO> mapDoctors(List<Doctor> doctors) {
@@ -330,30 +329,47 @@ public class ReservationServlet extends HttpServlet {
         return builder.toString();
     }
 
-    private String buildNextAvailabilitiesJson(List<NextAvailabilityDTO> nextAvailabilities) {
+    /**
+     * Build a JSON array of time slots with next availability for each doctor.
+     * Output format: [{"doctorId":2,"doctorName":"Dr Martin","availabilityDate":"2025-10-15",
+     *                  "startTime":"09:00:00","endTime":"17:00:00","timeSlots":["09:00","09:35",...]}, ...]
+     */
+    private String buildAvailabilityTimeSlotsJson(List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> availabilitiesWithSlots) {
         StringBuilder builder = new StringBuilder();
         builder.append('[');
         boolean first = true;
-        for (NextAvailabilityDTO nextAvail : nextAvailabilities) {
-            if (nextAvail == null) {
-                continue;
-            }
-            if (!first) {
-                builder.append(',');
-            }
+
+        for (org.example.clinique.dto.AvailabilityTimeSlotsDTO dto : availabilitiesWithSlots) {
+            if (dto == null) continue;
+
+            if (!first) builder.append(',');
             builder.append('{');
-            builder.append("\"doctorId\":").append(nextAvail.getDoctorId() != null ? nextAvail.getDoctorId() : "null");
+            builder.append("\"doctorId\":").append(dto.getDoctorId() != null ? dto.getDoctorId() : "null");
             builder.append(',');
-            builder.append("\"doctorName\":\"").append(escapeJson(nextAvail.getDoctorName())).append('\"');
+            builder.append("\"doctorName\":\"").append(escapeJson(dto.getDoctorName())).append('\"');
             builder.append(',');
-            builder.append("\"availabilityDate\":\"").append(escapeJson(nextAvail.getAvailabilityDate())).append('\"');
+            builder.append("\"availabilityDate\":\"").append(escapeJson(dto.getAvailabilityDate())).append('\"');
             builder.append(',');
-            builder.append("\"startTime\":\"").append(escapeJson(nextAvail.getStartTime())).append('\"');
+            builder.append("\"startTime\":\"").append(escapeJson(dto.getStartTime())).append('\"');
             builder.append(',');
-            builder.append("\"endTime\":\"").append(escapeJson(nextAvail.getEndTime())).append('\"');
+            builder.append("\"endTime\":\"").append(escapeJson(dto.getEndTime())).append('\"');
+            builder.append(',');
+            builder.append("\"timeSlots\":[");
+
+            boolean firstSlot = true;
+            if (dto.getTimeSlots() != null) {
+                for (String timeSlot : dto.getTimeSlots()) {
+                    if (!firstSlot) builder.append(',');
+                    builder.append('"').append(escapeJson(timeSlot)).append('"');
+                    firstSlot = false;
+                }
+            }
+
+            builder.append(']');
             builder.append('}');
             first = false;
         }
+
         builder.append(']');
         return builder.toString();
     }

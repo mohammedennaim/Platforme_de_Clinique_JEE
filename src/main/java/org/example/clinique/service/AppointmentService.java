@@ -15,6 +15,7 @@ import org.example.clinique.repository.PatientRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public class AppointmentService {
 
@@ -95,25 +96,51 @@ public class AppointmentService {
         return doctorRepository.findAll();
     }
 
-    public Availability getNextAvailabilityForDoctor(Long doctorId) {
+    /**
+     * Retourne la prochaine disponibilité du médecin avec ses créneaux horaires (time slots)
+     * Chaque créneau dure 30 minutes avec 5 minutes de pause (total 35 minutes entre chaque)
+     */
+    public org.example.clinique.dto.AvailabilityTimeSlotsDTO getNextAvailabilityForDoctor(Long doctorId) {
         if (doctorId == null) {
             return null;
         }
 
-        List<Availability> availabilitiesDoctor = availabilityRepository.findActiveByDoctor(doctorId);
-        System.out.println("Availabilities for doctor " + doctorId + ": " + availabilitiesDoctor.size());   
-        LocalDateTime now = LocalDateTime.now();
+        Optional<Availability> availabilityOpt = availabilityRepository.findAvailabilityByDoctor(doctorId);
+        
+        if (availabilityOpt.isPresent()) {
+            return org.example.clinique.mapper.AppointmentMapper.toAvailabilityTimeSlotsDTO(availabilityOpt.get());
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Retourne toutes les disponibilités du médecin avec leurs créneaux horaires (time slots)
+     */
+    public List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> getAllAvailabilityTimeSlotsForDoctor(Long doctorId) {
+        if (doctorId == null) {
+            return List.of();
+        }
 
-        // Trouver la prochaine disponibilité future
-        return availabilitiesDoctor.stream()
-            .filter(a -> {
-                LocalDateTime availabilityDateTime = LocalDateTime.of(
-                        a.getAvailabilityDate(),
-                        a.getStartTime());
-                return availabilityDateTime.isAfter(now);
-            })
-            .findFirst()
-            .orElse(null);
+        List<Availability> availabilities = availabilityRepository.findAvailabilitiesByDoctor(doctorId);
+        List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> result = new java.util.ArrayList<>();
+        
+        for (Availability availability : availabilities) {
+            if (availability.getAvailabilityDate() == null || 
+                availability.getStartTime() == null || 
+                availability.getEndTime() == null) {
+                continue;
+            }
+            
+            org.example.clinique.dto.AvailabilityTimeSlotsDTO dto = 
+                org.example.clinique.mapper.AppointmentMapper.toAvailabilityTimeSlotsDTO(availability);
+            
+            if (dto != null) {
+                result.add(dto);
+            }
+        }
+        
+        return result;
     }
 
     public List<Availability> listAllAvailabilities() {

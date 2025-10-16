@@ -134,6 +134,9 @@
   <script id="nextAvailabilitiesData" type="application/json">
     ${nextAvailabilitiesJson}
   </script>
+  <script id="availabilityTimeSlotsData" type="application/json">
+    ${availabilityTimeSlotsJson}
+  </script>
 
   <script src="js/reservation.js"></script>
 </body>

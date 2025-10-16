@@ -10,11 +10,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.example.clinique.dto.NextAvailabilityDTO;
-import org.example.clinique.entity.Availability;
 import org.example.clinique.entity.Doctor;
 import org.example.clinique.entity.User;
 import org.example.clinique.entity.enums.Role;
-import org.example.clinique.mapper.AppointmentMapper;
 import org.example.clinique.repository.DoctorRepository;
 import org.example.clinique.service.AppointmentService;
 
@@ -58,12 +56,26 @@ public class DoctorDashboardServlet extends HttpServlet {
 
             AppointmentService appointmentService = new AppointmentService(em);
             
-            Availability nextAvailability = appointmentService.getNextAvailabilityForDoctor(doctor.getId());
-            NextAvailabilityDTO nextAvailDTO = AppointmentMapper.toNextAvailabilityDTO(nextAvailability);
+            org.example.clinique.dto.AvailabilityTimeSlotsDTO nextAvailabilityWithSlots = 
+                appointmentService.getNextAvailabilityForDoctor(doctor.getId());
+            
+            // Convertir en NextAvailabilityDTO pour le JSP (pour compatibilité)
+            NextAvailabilityDTO nextAvailDTO = null;
+            if (nextAvailabilityWithSlots != null) {
+                nextAvailDTO = new NextAvailabilityDTO(
+                    nextAvailabilityWithSlots.getDoctorId(),
+                    nextAvailabilityWithSlots.getDoctorName(),
+                    nextAvailabilityWithSlots.getAvailabilityDate(),
+                    nextAvailabilityWithSlots.getStartTime(),
+                    nextAvailabilityWithSlots.getEndTime(),
+                    null, // dayOfWeek
+                    "AVAILABLE" // status
+                );
+            }
             
             req.setAttribute("doctor", doctor);
             req.setAttribute("nextAvailability", nextAvailDTO);
-            req.setAttribute("hasNextAvailability", nextAvailability != null);
+            req.setAttribute("hasNextAvailability", nextAvailDTO != null);
             
             req.getRequestDispatcher("/dashboard-doctor.jsp").forward(req, resp);
         } finally {

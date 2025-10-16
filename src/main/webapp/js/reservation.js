@@ -11,7 +11,7 @@ let currentWeekStart = null;
 let doctors = [];
 let availabilities = [];
 let appointments = [];
-let nextAvailabilities = [];
+let nextAvailabilitiesWithSlots = []; // Contient doctorId, doctorName, availabilityDate, startTime, endTime, timeSlots[]
 
 const APPOINTMENT_DURATION = 30;
 const BREAK_DURATION = 5;
@@ -62,6 +62,7 @@ function loadData() {
     const availabilityEl = document.getElementById('availabilityData');
     const appointmentsEl = document.getElementById('appointmentsData');
     const nextAvailabilitiesEl = document.getElementById('nextAvailabilitiesData');
+    const availabilityTimeSlotsEl = document.getElementById('availabilityTimeSlotsData');
 
     if (doctorsEl && doctorsEl.textContent.trim()) {
       doctors = JSON.parse(doctorsEl.textContent.trim());
@@ -76,15 +77,15 @@ function loadData() {
     }
 
     if (nextAvailabilitiesEl && nextAvailabilitiesEl.textContent.trim()) {
-      nextAvailabilities = JSON.parse(nextAvailabilitiesEl.textContent.trim());
-      console.log(nextAvailabilities);
+      nextAvailabilitiesWithSlots = JSON.parse(nextAvailabilitiesEl.textContent.trim());
+      console.log('✅ Next availabilities with time slots loaded:', nextAvailabilitiesWithSlots);
     }
   } catch (error) {
     console.error('Error loading data:', error);
     doctors = [];
     availabilities = [];
     appointments = [];
-    nextAvailabilities = [];
+    nextAvailabilitiesWithSlots = [];
   }
 }
 
@@ -133,8 +134,6 @@ function renderSelectedDoctor() {
   if (!container || !selectedDoctor) return;
 
   const initials = getInitials(selectedDoctor.firstName, selectedDoctor.lastName);
-  
-  
 
   container.innerHTML = `
     <div class="doctor-avatar">${escapeHtml(initials)}</div>
@@ -225,76 +224,40 @@ function renderTimeSlots() {
     return;
   }
 
-  const dayOfWeekNum = selectedDate.getDay();
-  const dayOfWeek = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][dayOfWeekNum];
   const selectedDateISO = formatDateISO(selectedDate);
 
-  // Find doctor's availability for this date
-  const doctorAvailabilities = availabilities.filter(a => {
-    const dateMatch = a.availabilityDate === selectedDateISO;
-    const dayMatch = !a.availabilityDate && a.dayOfWeek === dayOfWeek;
-    const doctorMatch = String(a.doctorId) === String(selectedDoctor.id);
-    const statusMatch = a.status === 'AVAILABLE';
-    
-    return doctorMatch && (dateMatch || dayMatch) && statusMatch;
+  // Chercher les time slots depuis le backend pour ce médecin et cette date
+  const availabilityData = nextAvailabilitiesWithSlots.find(avail => {
+    return String(avail.doctorId) === String(selectedDoctor.id) && 
+           avail.availabilityDate === selectedDateISO;
   });
 
-  if (doctorAvailabilities.length === 0) {
+  if (!availabilityData || !availabilityData.timeSlots || availabilityData.timeSlots.length === 0) {
     container.innerHTML = '<p class="placeholder">Aucun créneau disponible pour cette date</p>';
     return;
   }
 
-  const slots = [];
-  doctorAvailabilities.forEach(availability => {    
-    const startTimeStr = availability.startTime || '00:00:00';
-    const endTimeStr = availability.endTime || '00:00:00';
-    
-    const [startHour, startMin] = startTimeStr.split(':').map(Number);
-    const [endHour, endMin] = endTimeStr.split(':').map(Number);
-    
-    const startMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
-    
-    for (let minutes = startMinutes; minutes < endMinutes; minutes += (APPOINTMENT_DURATION + BREAK_DURATION)) {
-      const hour = Math.floor(minutes / 60);
-      const min = minutes % 60;
-      const timeStr = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
-      
-      const isBooked = isTimeSlotBooked(selectedDate, timeStr);
-      
-      const slotEndMinutes = minutes + APPOINTMENT_DURATION;
-      const fitsInSchedule = slotEndMinutes <= endMinutes;
-      
-      // Ajouter tous les créneaux disponibles (pas déjà réservés)
-      if (fitsInSchedule && !isBooked) {
-        slots.push({
-          time: timeStr,
-          disabled: false
-        });
-      }
-    }
+  // Filtrer les créneaux déjà réservés
+  const availableSlots = availabilityData.timeSlots.filter(timeSlot => {
+    return !isTimeSlotBooked(selectedDate, timeSlot);
   });
 
-  console.log('📅 Créneaux générés:', slots.length);
-  if (slots.length > 0) {
-    console.log('   Premier créneau:', slots[0].time);
-    console.log('   Dernier créneau:', slots[slots.length - 1].time);
-  }
-
-  if (slots.length === 0) {
-    container.innerHTML = '<p class="placeholder">Aucun créneau disponible</p>';
+  if (availableSlots.length === 0) {
+    container.innerHTML = '<p class="placeholder">Tous les créneaux sont réservés pour cette date</p>';
     return;
   }
 
+  console.log('📅 Créneaux disponibles pour', selectedDateISO, ':', availableSlots.length);
+
   container.innerHTML = `
     <div class="time-slots-grid">
-      ${slots.map(slot => {
+      ${availableSlots.map(timeSlot => {
         const classes = ['time-slot'];
-        if (selectedTime === slot.time) classes.push('selected');
+        if (selectedTime === timeSlot) classes.push('selected');
         
         return `
-          <div class="${classes.join(' ')}" onclick="selectTime('${slot.time}')">
-            ${slot.time}
+          <div class="${classes.join(' ')}" onclick="selectTime('${timeSlot}')">
+            ${timeSlot}
           </div>
         `;
       }).join('')}
