@@ -11,11 +11,10 @@ let currentWeekStart = null;
 let doctors = [];
 let availabilities = [];
 let appointments = [];
+let nextAvailabilities = [];
 
-// Constants
-const APPOINTMENT_DURATION = 30; // minutes
-const BREAK_DURATION = 5; // minutes
-const BOOKING_WINDOW_HOURS = 2; // hours
+const APPOINTMENT_DURATION = 30;
+const BREAK_DURATION = 5;
 
 // ========================================
 // Specialty Icons Mapping
@@ -62,6 +61,7 @@ function loadData() {
     const doctorsEl = document.getElementById('doctorsData');
     const availabilityEl = document.getElementById('availabilityData');
     const appointmentsEl = document.getElementById('appointmentsData');
+    const nextAvailabilitiesEl = document.getElementById('nextAvailabilitiesData');
 
     if (doctorsEl && doctorsEl.textContent.trim()) {
       doctors = JSON.parse(doctorsEl.textContent.trim());
@@ -74,11 +74,17 @@ function loadData() {
     if (appointmentsEl && appointmentsEl.textContent.trim()) {
       appointments = JSON.parse(appointmentsEl.textContent.trim());
     }
+
+    if (nextAvailabilitiesEl && nextAvailabilitiesEl.textContent.trim()) {
+      nextAvailabilities = JSON.parse(nextAvailabilitiesEl.textContent.trim());
+      console.log(nextAvailabilities);
+    }
   } catch (error) {
     console.error('Error loading data:', error);
     doctors = [];
     availabilities = [];
     appointments = [];
+    nextAvailabilities = [];
   }
 }
 
@@ -107,7 +113,7 @@ function renderSpecialties() {
 function selectSpecialty(specialty) {
   selectedSpecialty = specialty;
   
-  const filteredDoctors = doctors.filter(d => d.specialty === specialty);
+  const filteredDoctors = doctors.filter(d => d.specialty === specialty);  
   
   if (filteredDoctors.length === 0) {
     alert('Aucun médecin disponible pour cette spécialité');
@@ -116,7 +122,6 @@ function selectSpecialty(specialty) {
 
   // Random selection
   selectedDoctor = filteredDoctors[Math.floor(Math.random() * filteredDoctors.length)];
-  
   nextStep();
 }
 
@@ -128,11 +133,13 @@ function renderSelectedDoctor() {
   if (!container || !selectedDoctor) return;
 
   const initials = getInitials(selectedDoctor.firstName, selectedDoctor.lastName);
+  
+  
 
   container.innerHTML = `
     <div class="doctor-avatar">${escapeHtml(initials)}</div>
     <div class="doctor-info">
-      <h3>Dr. ${escapeHtml(selectedDoctor.firstName)} ${escapeHtml(selectedDoctor.lastName)}</h3>
+      <h3>${escapeHtml(selectedDoctor.fullName)}</h3>
       <p>${escapeHtml(selectedDoctor.specialty)}</p>
     </div>
   `;
@@ -180,7 +187,7 @@ function renderCalendar() {
     const dayOfWeek = date.getDay();
     const isPast = date < today;
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    const isDisabled = isPast || isWeekend;
+    const isDisabled = isPast; // Ne désactiver que les jours passés, pas les week-ends
     const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
     
     const classes = ['calendar-day'];
@@ -219,11 +226,6 @@ function renderTimeSlots() {
   }
 
   const dayOfWeekNum = selectedDate.getDay();
-  if (dayOfWeekNum === 0 || dayOfWeekNum === 6) {
-    container.innerHTML = '<p class="placeholder">Pas de consultations le week-end</p>';
-    return;
-  }
-
   const dayOfWeek = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][dayOfWeekNum];
   const selectedDateISO = formatDateISO(selectedDate);
 
@@ -242,9 +244,8 @@ function renderTimeSlots() {
     return;
   }
 
-  // Generate time slots with 5-minute breaks
   const slots = [];
-  doctorAvailabilities.forEach(availability => {
+  doctorAvailabilities.forEach(availability => {    
     const startTimeStr = availability.startTime || '00:00:00';
     const endTimeStr = availability.endTime || '00:00:00';
     
@@ -259,24 +260,26 @@ function renderTimeSlots() {
       const min = minutes % 60;
       const timeStr = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
       
-      // Check if slot is within 2-hour booking window
-      const isWithinWindow = isWithinBookingWindow(selectedDate, timeStr);
-      
-      // Check if slot is already booked
       const isBooked = isTimeSlotBooked(selectedDate, timeStr);
       
-      // Check if slot fits before end time
       const slotEndMinutes = minutes + APPOINTMENT_DURATION;
       const fitsInSchedule = slotEndMinutes <= endMinutes;
       
-      if (fitsInSchedule) {
+      // Ajouter tous les créneaux disponibles (pas déjà réservés)
+      if (fitsInSchedule && !isBooked) {
         slots.push({
           time: timeStr,
-          disabled: !isWithinWindow || isBooked
+          disabled: false
         });
       }
     }
   });
+
+  console.log('📅 Créneaux générés:', slots.length);
+  if (slots.length > 0) {
+    console.log('   Premier créneau:', slots[0].time);
+    console.log('   Dernier créneau:', slots[slots.length - 1].time);
+  }
 
   if (slots.length === 0) {
     container.innerHTML = '<p class="placeholder">Aucun créneau disponible</p>';
@@ -287,12 +290,10 @@ function renderTimeSlots() {
     <div class="time-slots-grid">
       ${slots.map(slot => {
         const classes = ['time-slot'];
-        if (slot.disabled) classes.push('disabled');
         if (selectedTime === slot.time) classes.push('selected');
         
         return `
-          <div class="${classes.join(' ')}" 
-               onclick="${slot.disabled ? '' : `selectTime('${slot.time}')`}">
+          <div class="${classes.join(' ')}" onclick="selectTime('${slot.time}')">
             ${slot.time}
           </div>
         `;
@@ -307,9 +308,8 @@ function isWithinBookingWindow(date, time) {
   const [hours, minutes] = time.split(':').map(Number);
   slotDateTime.setHours(hours, minutes, 0, 0);
   
-  const twoHoursFromNow = new Date(now.getTime() + BOOKING_WINDOW_HOURS * 60 * 60 * 1000);
-  
-  return slotDateTime >= twoHoursFromNow;
+  // Vérifier seulement si le créneau est dans le futur
+  return slotDateTime > now;
 }
 
 function isTimeSlotBooked(date, time) {
@@ -329,10 +329,10 @@ function isTimeSlotBooked(date, time) {
       
       const aptStartMinutes = aptHour * 60 + aptMin;
       const slotStartMinutes = slotHour * 60 + slotMin;
-      const slotEndMinutes = slotStartMinutes + APPOINTMENT_DURATION + BREAK_DURATION;
+      const slotEndMinutes = slotStartMinutes + APPOINTMENT_DURATION;
       
       // Check overlap
-      return slotStartMinutes < (aptStartMinutes + APPOINTMENT_DURATION + BREAK_DURATION) && 
+      return slotStartMinutes < (aptStartMinutes + APPOINTMENT_DURATION ) && 
              slotEndMinutes > aptStartMinutes;
     }
     

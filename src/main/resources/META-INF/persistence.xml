@@ -32,7 +32,7 @@
       <property name="jakarta.persistence.jdbc.password" value="clinique123"/>
 
       <!-- ✅ Paramètres Hibernate -->
-      <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQLDialect"/>
+      <!-- hibernate.dialect auto-détecté par Hibernate -->
       <property name="hibernate.connection.provider_class"
                 value="org.hibernate.hikaricp.internal.HikariCPConnectionProvider"/>
       <property name="hibernate.hbm2ddl.auto" value="update"/>

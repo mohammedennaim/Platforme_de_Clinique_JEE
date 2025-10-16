@@ -33,10 +33,10 @@ public class AppointmentService {
     }
 
     public Appointment createAppointment(Long patientId,
-                                         Long doctorId,
-                                         LocalDateTime start,
-                                         LocalDateTime end,
-                                         AppointmentType type) {
+            Long doctorId,
+            LocalDateTime start,
+            LocalDateTime end,
+            AppointmentType type) {
         if (patientId == null) {
             throw new IllegalArgumentException("Patient introuvable");
         }
@@ -95,11 +95,25 @@ public class AppointmentService {
         return doctorRepository.findAll();
     }
 
-    public List<Availability> listAvailabilitiesForDoctor(Long doctorId) {
+    public Availability getNextAvailabilityForDoctor(Long doctorId) {
         if (doctorId == null) {
-            return List.of();
+            return null;
         }
-        return availabilityRepository.findActiveByDoctor(doctorId);
+
+        List<Availability> availabilitiesDoctor = availabilityRepository.findActiveByDoctor(doctorId);
+        System.out.println("Availabilities for doctor " + doctorId + ": " + availabilitiesDoctor.size());   
+        LocalDateTime now = LocalDateTime.now();
+
+        // Trouver la prochaine disponibilité future
+        return availabilitiesDoctor.stream()
+            .filter(a -> {
+                LocalDateTime availabilityDateTime = LocalDateTime.of(
+                        a.getAvailabilityDate(),
+                        a.getStartTime());
+                return availabilityDateTime.isAfter(now);
+            })
+            .findFirst()
+            .orElse(null);
     }
 
     public List<Availability> listAllAvailabilities() {

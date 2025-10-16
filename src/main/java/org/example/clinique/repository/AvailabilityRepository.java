@@ -17,7 +17,11 @@ public class AvailabilityRepository {
 
     public List<Availability> findActiveByDoctor(Long doctorId) {
         TypedQuery<Availability> query = em.createQuery(
-                "SELECT av FROM Availability av JOIN FETCH av.doctor WHERE av.doctor.id = :doctorId AND av.status = :status",
+                "SELECT av FROM Availability av JOIN FETCH av.doctor " +
+                "WHERE av.doctor.id = :doctorId AND av.status = :status " +
+                "AND (av.availabilityDate > CURRENT_DATE " +
+                "OR (av.availabilityDate = CURRENT_DATE AND av.startTime >= CURRENT_TIME))" +
+                "ORDER BY av.availabilityDate ASC, av.startTime ASC",
                 Availability.class
         );
         query.setParameter("doctorId", doctorId);

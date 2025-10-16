@@ -47,4 +47,14 @@ public class DoctorRepository {
         return em.createQuery("SELECT d FROM Doctor d ORDER BY d.lastName", Doctor.class)
                 .getResultList();
     }
+
+    public Doctor findByUserId(Long userId) {
+        try {
+            return em.createQuery("SELECT d FROM Doctor d WHERE d.user.id = :userId", Doctor.class)
+                    .setParameter("userId", userId)
+                    .getSingleResult();
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

@@ -12,7 +12,9 @@ import org.example.clinique.dto.AppointmentRequestDTO;
 import org.example.clinique.dto.AppointmentResponseDTO;
 import org.example.clinique.dto.AvailabilityDTO;
 import org.example.clinique.dto.DoctorSummaryDTO;
+import org.example.clinique.dto.NextAvailabilityDTO;
 import org.example.clinique.entity.Appointment;
+import org.example.clinique.entity.Availability;
 import org.example.clinique.entity.Doctor;
 import org.example.clinique.entity.Patient;
 import org.example.clinique.entity.User;
@@ -212,13 +214,24 @@ public class ReservationServlet extends HttpServlet {
                 .map(AppointmentMapper::toResponseDTO)
                 .collect(Collectors.toList());
 
+        List<NextAvailabilityDTO> nextAvailabilities = new ArrayList<>();
+        for (DoctorSummaryDTO doctor : doctorSummaries) {
+            Availability nextAvail = appointmentService.getNextAvailabilityForDoctor(doctor.getId());
+            if (nextAvail != null) {
+                nextAvailabilities.add(AppointmentMapper.toNextAvailabilityDTO(nextAvail));
+            }
+        }
+        // System.out.println("Next availabilities 2: " + buildNextAvailabilitiesJson(nextAvailabilities));
+
         req.setAttribute("doctorSummaries", doctorSummaries);
         req.setAttribute("availabilityDTOs", availabilityDTOs);
         req.setAttribute("appointmentDTOs", appointmentDTOs);
+        req.setAttribute("nextAvailabilities", nextAvailabilities);
         req.setAttribute("appointmentTypes", AppointmentType.values());
         req.setAttribute("availabilityJson", buildAvailabilityJson(availabilityDTOs));
         req.setAttribute("doctorsJson", buildDoctorsJson(doctorSummaries));
         req.setAttribute("appointmentsJson", buildAppointmentsJson(appointmentDTOs));
+        req.setAttribute("nextAvailabilitiesJson", buildNextAvailabilitiesJson(nextAvailabilities));
     }
 
     private List<DoctorSummaryDTO> mapDoctors(List<Doctor> doctors) {
@@ -310,6 +323,34 @@ public class ReservationServlet extends HttpServlet {
             builder.append("\"start\":\"").append(escapeJson(appointment.getStart())).append('\"');
             builder.append(',');
             builder.append("\"end\":\"").append(escapeJson(appointment.getEnd())).append('\"');
+            builder.append('}');
+            first = false;
+        }
+        builder.append(']');
+        return builder.toString();
+    }
+
+    private String buildNextAvailabilitiesJson(List<NextAvailabilityDTO> nextAvailabilities) {
+        StringBuilder builder = new StringBuilder();
+        builder.append('[');
+        boolean first = true;
+        for (NextAvailabilityDTO nextAvail : nextAvailabilities) {
+            if (nextAvail == null) {
+                continue;
+            }
+            if (!first) {
+                builder.append(',');
+            }
+            builder.append('{');
+            builder.append("\"doctorId\":").append(nextAvail.getDoctorId() != null ? nextAvail.getDoctorId() : "null");
+            builder.append(',');
+            builder.append("\"doctorName\":\"").append(escapeJson(nextAvail.getDoctorName())).append('\"');
+            builder.append(',');
+            builder.append("\"availabilityDate\":\"").append(escapeJson(nextAvail.getAvailabilityDate())).append('\"');
+            builder.append(',');
+            builder.append("\"startTime\":\"").append(escapeJson(nextAvail.getStartTime())).append('\"');
+            builder.append(',');
+            builder.append("\"endTime\":\"").append(escapeJson(nextAvail.getEndTime())).append('\"');
             builder.append('}');
             first = false;
         }

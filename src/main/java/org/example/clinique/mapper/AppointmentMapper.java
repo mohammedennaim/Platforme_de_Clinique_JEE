@@ -3,6 +3,7 @@ package org.example.clinique.mapper;
 import org.example.clinique.dto.AppointmentResponseDTO;
 import org.example.clinique.dto.AvailabilityDTO;
 import org.example.clinique.dto.DoctorSummaryDTO;
+import org.example.clinique.dto.NextAvailabilityDTO;
 import org.example.clinique.entity.Appointment;
 import org.example.clinique.entity.Availability;
 import org.example.clinique.entity.Doctor;
@@ -70,6 +71,27 @@ public final class AppointmentMapper {
                 availability.getDayOfWeek(),
                 availability.getStartTime() != null ? availability.getStartTime().toString() : null,
                 availability.getEndTime() != null ? availability.getEndTime().toString() : null,
+                availability.getStatus() != null ? availability.getStatus().name() : null
+        );
+    }
+
+    public static NextAvailabilityDTO toNextAvailabilityDTO(Availability availability) {
+        if (availability == null) {
+            return null;
+        }
+        Doctor doctor = availability.getDoctor();
+        String doctorName = "";
+        if (doctor != null) {
+            doctorName = (doctor.getTitle() != null ? doctor.getTitle() + " " : "")
+                    + doctor.getFirstName() + " " + doctor.getLastName();
+        }
+        return new NextAvailabilityDTO(
+                doctor != null ? doctor.getId() : null,
+                doctorName.trim(),
+                availability.getAvailabilityDate() != null ? availability.getAvailabilityDate().toString() : null,
+                availability.getStartTime() != null ? availability.getStartTime().toString() : null,
+                availability.getEndTime() != null ? availability.getEndTime().toString() : null,
+                availability.getDayOfWeek(),
                 availability.getStatus() != null ? availability.getStatus().name() : null
         );
     }
