@@ -60,4 +60,22 @@ public class AppointmentRepository {
                 .getSingleResult();
         return count != null && count > 0;
     }
+
+    public List<Appointment> findByDoctorAndDate(Long doctorId, java.time.LocalDate date) {
+        java.time.LocalDateTime startOfDay = date.atStartOfDay();
+        java.time.LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
+        
+        TypedQuery<Appointment> query = em.createQuery(
+                "SELECT a FROM Appointment a " +
+                        "WHERE a.doctor.id = :doctorId " +
+                        "AND a.startDatetime >= :startOfDay " +
+                        "AND a.startDatetime < :endOfDay " +
+                        "ORDER BY a.startDatetime ASC",
+                Appointment.class
+        );
+        query.setParameter("doctorId", doctorId);
+        query.setParameter("startOfDay", startOfDay);
+        query.setParameter("endOfDay", endOfDay);
+        return query.getResultList();
+    }
 }

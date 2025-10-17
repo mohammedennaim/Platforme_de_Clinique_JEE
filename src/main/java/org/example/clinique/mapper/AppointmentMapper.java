@@ -98,10 +98,9 @@ public final class AppointmentMapper {
         return null;
     }
     
-    /**
-     * Convertit une Availability en AvailabilityTimeSlotsDTO avec génération des time slots
-     */
-    public static org.example.clinique.dto.AvailabilityTimeSlotsDTO toAvailabilityTimeSlotsDTO(Availability availability) {
+    public static org.example.clinique.dto.AvailabilityTimeSlotsDTO toAvailabilityTimeSlotsDTO(
+            Availability availability, 
+            java.util.List<Appointment> existingAppointments) {
         if (availability == null) {
             return null;
         }
@@ -113,10 +112,16 @@ public final class AppointmentMapper {
                     + doctor.getFirstName() + " " + doctor.getLastName();
         }
         
-        // Générer les time slots (créneaux de 35 minutes: 30 min RDV + 5 min pause)
-        java.util.List<String> timeSlots = generateTimeSlots(
+        java.util.List<String> allTimeSlots = generateTimeSlots(
             availability.getStartTime(), 
             availability.getEndTime()
+        );
+        
+        // Filter out time slots that are already booked
+        java.util.List<String> availableTimeSlots = filterAvailableSlots(
+            allTimeSlots,
+            existingAppointments,
+            availability.getAvailabilityDate()
         );
         
         return new org.example.clinique.dto.AvailabilityTimeSlotsDTO(
@@ -125,8 +130,49 @@ public final class AppointmentMapper {
             availability.getAvailabilityDate() != null ? availability.getAvailabilityDate().toString() : null,
             availability.getStartTime() != null ? availability.getStartTime().toString() : null,
             availability.getEndTime() != null ? availability.getEndTime().toString() : null,
-            timeSlots
+            availableTimeSlots
         );
+    }
+    
+    private static java.util.List<String> filterAvailableSlots(
+            java.util.List<String> allSlots,
+            java.util.List<Appointment> appointments,
+            java.time.LocalDate availabilityDate) {
+        
+        if (appointments == null || appointments.isEmpty()) {
+            return allSlots;
+        }
+        
+        java.util.List<String> availableSlots = new java.util.ArrayList<>();
+        
+        for (String slot : allSlots) {
+            boolean isBooked = false;
+            
+            // Parse the slot time (format "HH:mm")
+            String[] parts = slot.split(":");
+            int slotHour = Integer.parseInt(parts[0]);
+            int slotMinute = Integer.parseInt(parts[1]);
+            java.time.LocalTime slotTime = java.time.LocalTime.of(slotHour, slotMinute);
+            java.time.LocalDateTime slotDateTime = java.time.LocalDateTime.of(availabilityDate, slotTime);
+            
+            // Check if this slot overlaps with any existing appointment
+            for (Appointment appointment : appointments) {
+                if (appointment.getStartDatetime() != null && appointment.getEndDatetime() != null) {
+                    // Check if slot time falls within appointment time range
+                    if (!slotDateTime.isBefore(appointment.getStartDatetime()) && 
+                        slotDateTime.isBefore(appointment.getEndDatetime())) {
+                        isBooked = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!isBooked) {
+                availableSlots.add(slot);
+            }
+        }
+        
+        return availableSlots;
     }
     
 

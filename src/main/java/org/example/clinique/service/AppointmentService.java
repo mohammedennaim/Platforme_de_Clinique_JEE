@@ -108,7 +108,16 @@ public class AppointmentService {
         Optional<Availability> availabilityOpt = availabilityRepository.findAvailabilityByDoctor(doctorId);
         
         if (availabilityOpt.isPresent()) {
-            return org.example.clinique.mapper.AppointmentMapper.toAvailabilityTimeSlotsDTO(availabilityOpt.get());
+            Availability availability = availabilityOpt.get();
+            // Get existing appointments for this doctor on this date
+            List<Appointment> appointments = appointmentRepository.findByDoctorAndDate(
+                doctorId, 
+                availability.getAvailabilityDate()
+            );
+            return org.example.clinique.mapper.AppointmentMapper.toAvailabilityTimeSlotsDTO(
+                availability, 
+                appointments
+            );
         }
         
         return null;
@@ -129,8 +138,17 @@ public class AppointmentService {
                 continue;
             }
             
+            // Get existing appointments for this doctor on this date
+            List<Appointment> appointments = appointmentRepository.findByDoctorAndDate(
+                doctorId, 
+                availability.getAvailabilityDate()
+            );
+            
             org.example.clinique.dto.AvailabilityTimeSlotsDTO dto = 
-                org.example.clinique.mapper.AppointmentMapper.toAvailabilityTimeSlotsDTO(availability);
+                org.example.clinique.mapper.AppointmentMapper.toAvailabilityTimeSlotsDTO(
+                    availability, 
+                    appointments
+                );
             
             if (dto != null) {
                 result.add(dto);
