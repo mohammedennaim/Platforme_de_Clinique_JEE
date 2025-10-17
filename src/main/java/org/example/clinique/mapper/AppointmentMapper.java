@@ -129,20 +129,20 @@ public final class AppointmentMapper {
         );
     }
     
-    /**
-     * Génère les créneaux horaires entre startTime et endTime
-     * avec un intervalle de 35 minutes (30 min rendez-vous + 5 min pause)
-     */
+
     private static java.util.List<String> generateTimeSlots(java.time.LocalTime startTime, java.time.LocalTime endTime) {
         java.util.List<String> slots = new java.util.ArrayList<>();
         
         if (startTime == null || endTime == null) {
             return slots;
         }
+
+        int APPOINTMENT_DURATION = 30;
+        int BREAK_DURATION = 5;
+        int INTERVAL = APPOINTMENT_DURATION + BREAK_DURATION;
         
-        int APPOINTMENT_DURATION = 30; // minutes
-        int BREAK_DURATION = 5; // minutes
-        int INTERVAL = APPOINTMENT_DURATION + BREAK_DURATION; // 35 minutes
+        int LUNCH_BREAK_START = 12 * 60;
+        int LUNCH_BREAK_END = 13 * 60;
         
         int startMinutes = startTime.getHour() * 60 + startTime.getMinute();
         int endMinutes = endTime.getHour() * 60 + endTime.getMinute();
@@ -150,11 +150,17 @@ public final class AppointmentMapper {
         for (int minutes = startMinutes; minutes < endMinutes; minutes += INTERVAL) {
             int hour = minutes / 60;
             int minute = minutes % 60;
-            
-            // Vérifier que le créneau + durée du RDV rentre dans la plage
-            if (minutes + APPOINTMENT_DURATION <= endMinutes) {
-                String timeSlot = String.format("%02d:%02d", hour, minute);
-                slots.add(timeSlot);
+            int slotEndMinutes = minutes + APPOINTMENT_DURATION;
+
+            if (slotEndMinutes <= endMinutes) {
+                boolean startsInLunchBreak = (minutes >= LUNCH_BREAK_START && minutes < LUNCH_BREAK_END);
+                boolean endsInLunchBreak = (slotEndMinutes > LUNCH_BREAK_START && slotEndMinutes <= LUNCH_BREAK_END);
+                boolean overlapsLunchBreak = (minutes < LUNCH_BREAK_START && slotEndMinutes > LUNCH_BREAK_START);
+                
+                if (!startsInLunchBreak && !endsInLunchBreak && !overlapsLunchBreak) {
+                    String timeSlot = String.format("%02d:%02d", hour, minute);
+                    slots.add(timeSlot);
+                }
             }
         }
         

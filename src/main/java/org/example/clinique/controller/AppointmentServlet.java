@@ -78,7 +78,7 @@ public class AppointmentServlet extends HttpServlet {
                     .map(AppointmentMapper::toAvailabilityDTO)
                     .collect(Collectors.toList());
             List<AppointmentResponseDTO> appointmentDTOs = appointmentService
-                    .getUpcomingAppointmentsForPatient(patient.getId(), 20)
+                    .getUpcomingAppointmentsForPatient(patient.getId())
                     .stream()
                     .map(AppointmentMapper::toResponseDTO)
                     .collect(Collectors.toList());

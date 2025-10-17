@@ -78,7 +78,6 @@ function loadData() {
 
     if (nextAvailabilitiesEl && nextAvailabilitiesEl.textContent.trim()) {
       nextAvailabilitiesWithSlots = JSON.parse(nextAvailabilitiesEl.textContent.trim());
-      console.log('✅ Next availabilities with time slots loaded:', nextAvailabilitiesWithSlots);
     }
   } catch (error) {
     console.error('Error loading data:', error);
@@ -246,8 +245,6 @@ function renderTimeSlots() {
     container.innerHTML = '<p class="placeholder">Tous les créneaux sont réservés pour cette date</p>';
     return;
   }
-
-  console.log('📅 Créneaux disponibles pour', selectedDateISO, ':', availableSlots.length);
 
   container.innerHTML = `
     <div class="time-slots-grid">

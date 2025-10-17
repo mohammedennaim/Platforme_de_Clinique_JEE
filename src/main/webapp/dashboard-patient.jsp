@@ -1,10 +1,13 @@
 <%@ page contentType="text/html;charset=UTF-8" %>
 <%@ page import="org.example.clinique.entity.User" %>
+<%@ page import="org.example.clinique.entity.Patient" %>
 <%
-    String email = (String) session.getAttribute("userEmail");
-    User patient = (User) session.getAttribute("user");
-    if (email == null || patient == null) {
-        response.sendRedirect("index.jsp");
+    // Get data from servlet
+    User patientUser = (User) request.getAttribute("patientUser");
+    Patient patientEntity = (Patient) request.getAttribute("patientEntity");
+    
+    if (patientUser == null || patientEntity == null) {
+        response.sendRedirect(request.getContextPath() + "/dashboard");
         return;
     }
 %>
@@ -141,11 +144,11 @@
                 </button>
                 <div class="user-menu">
                     <div class="user-avatar">
-                        <span><%= patient.getFirstName().substring(0, 1) %><%= patient.getLastName().substring(0, 1) %></span>
+                        <span><%= patientUser.getFirstName().substring(0, 1) %><%= patientUser.getLastName().substring(0, 1) %></span>
                     </div>
                     <div class="user-info">
                         <span class="user-role">Patient</span>
-                        <span class="user-name"><%= patient.getFirstName() %> <%= patient.getLastName() %></span>
+                        <span class="user-name"><%= patientUser.getFirstName() %> <%= patientUser.getLastName() %></span>
 
                     </div>
                 </div>
@@ -213,7 +216,7 @@
                         </svg>
                     </div>
                     <div class="stat-content">
-                        <h3 class="stat-value" data-target="3">0</h3>
+                        <h3 class="stat-value" data-target="5"></h3>
                         <p class="stat-label">Rendez-vous à venir</p>
                         <div class="stat-progress">
                             <div class="stat-progress-bar" style="width: 60%; background: linear-gradient(90deg, #10b981 0%, #059669 100%);"></div>
@@ -448,9 +451,9 @@
             <div class="profile-grid">
                 <div class="profile-card">
                     <div class="profile-avatar-large">
-                        <span><%= patient.getFirstName().substring(0, 1) %><%= patient.getLastName().substring(0, 1) %></span>
+                        <span><%= patientUser.getFirstName().substring(0, 1) %><%= patientUser.getLastName().substring(0, 1) %></span>
                     </div>
-                    <h3><%= patient.getFirstName() %> <%= patient.getLastName() %></h3>
+                    <h3><%= patientUser.getFirstName() %> <%= patientUser.getLastName() %></h3>
                     <p class="profile-role">Patient</p>
                     <div class="profile-stats">
                         <div class="profile-stat">
@@ -472,7 +475,7 @@
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="info-label">Email</span>
-                            <span class="info-value"><%= patient.getEmail() %></span>
+                            <span class="info-value"><%= patientUser.getEmail() %></span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">Téléphone</span>
@@ -499,6 +502,58 @@
             </div>
         </div>
     </div>
+
+    <!-- Inject appointment data for JavaScript -->
+    <script id="appointmentsData" type="application/json"><%= request.getAttribute("appointmentsJson") != null ? request.getAttribute("appointmentsJson") : "[]" %></script>
+    
+    <script>
+        // Make appointments data available globally with error handling and fallback to API
+        let appointmentsData = [];
+        try {
+            const dataElement = document.getElementById('appointmentsData');
+            const jsonText = dataElement ? dataElement.textContent.trim() : '[]';
+            appointmentsData = jsonText ? JSON.parse(jsonText) : [];
+        } catch (e) {
+            console.error('❌ Error parsing appointments data:', e);
+            appointmentsData = [];
+        }
+
+        // Initialize window.appointmentsData immediately as empty array to prevent errors
+        window.appointmentsData = Array.isArray(appointmentsData) ? appointmentsData : [];
+        console.log('📊 Initial appointments loaded:', window.appointmentsData.length, 'rendez-vous');
+
+        // If server didn't inject appointmentsJson, fetch via API
+        (async function ensureAppointmentsData() {
+            try {
+                if (!window.appointmentsData || window.appointmentsData.length === 0) {
+                    console.log('🔄 Fetching appointments from API...');
+                    const resp = await fetch('<%= request.getContextPath() %>/api/patient/appointments', { credentials: 'same-origin' });
+                    if (resp.ok) {
+                        const json = await resp.text();
+                        try {
+                            const data = json ? JSON.parse(json) : [];
+                            window.appointmentsData = Array.isArray(data) ? data : [];
+                            console.log('✅ Appointments loaded from API:', window.appointmentsData.length, 'rendez-vous');
+                            
+                            // Reload the dashboard sections with new data
+                            if (typeof loadUpcomingAppointments === 'function') loadUpcomingAppointments();
+                            if (typeof loadAppointments === 'function') loadAppointments();
+                            if (typeof updateStats === 'function') updateStats();
+                        } catch (e) {
+                            console.error('❌ Failed to parse API JSON:', e, json);
+                            window.appointmentsData = [];
+                        }
+                    } else {
+                        console.warn('⚠️ Appointments API returned', resp.status);
+                        window.appointmentsData = [];
+                    }
+                }
+            } catch (e) {
+                console.error('❌ Error fetching appointments API:', e);
+                window.appointmentsData = [];
+            }
+        })();
+    </script>
 
     <script src="js/patient-dashboard.js"></script>
 </body>

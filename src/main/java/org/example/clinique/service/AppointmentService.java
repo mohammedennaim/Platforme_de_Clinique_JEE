@@ -88,18 +88,18 @@ public class AppointmentService {
         return appointment;
     }
 
-    public List<Appointment> getUpcomingAppointmentsForPatient(Long patientId, int limit) {
-        return appointmentRepository.findUpcomingByPatient(patientId, LocalDateTime.now(), limit);
+    public List<Appointment> getUpcomingAppointmentsForPatient(Long patientId) {
+        return appointmentRepository.findUpcomingByPatient(patientId, LocalDateTime.now());
+    }
+
+    public List<Appointment> getUpcomingAppointmentsForDoctor(Long doctorId) {
+        return appointmentRepository.findUpcomingByDoctor(doctorId, LocalDateTime.now());
     }
 
     public List<Doctor> listDoctors() {
         return doctorRepository.findAll();
     }
 
-    /**
-     * Retourne la prochaine disponibilité du médecin avec ses créneaux horaires (time slots)
-     * Chaque créneau dure 30 minutes avec 5 minutes de pause (total 35 minutes entre chaque)
-     */
     public org.example.clinique.dto.AvailabilityTimeSlotsDTO getNextAvailabilityForDoctor(Long doctorId) {
         if (doctorId == null) {
             return null;
@@ -114,9 +114,6 @@ public class AppointmentService {
         return null;
     }
     
-    /**
-     * Retourne toutes les disponibilités du médecin avec leurs créneaux horaires (time slots)
-     */
     public List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> getAllAvailabilityTimeSlotsForDoctor(Long doctorId) {
         if (doctorId == null) {
             return List.of();

@@ -21,17 +21,18 @@ public class Appointment {
     @JoinColumn(name = "patient_id")
     private Patient patient;
 
-    @JoinColumn(name = "start_datetime")
+    @Column(name = "start_datetime")
     private LocalDateTime startDatetime;
-    @JoinColumn(name = "end_datetime")
+    
+    @Column(name = "end_datetime")
     private LocalDateTime endDatetime;
 
     @Enumerated(EnumType.STRING)
-    @JoinColumn(name = "status")
+    @Column(name = "status")
     private AppointmentStatus status = AppointmentStatus.PLANNED;
 
     @Enumerated(EnumType.STRING)
-    @JoinColumn(name = "appointment_type")
+    @Column(name = "appointment_type")
     private AppointmentType appointmentType;
 
     @Column(name = "created_at")

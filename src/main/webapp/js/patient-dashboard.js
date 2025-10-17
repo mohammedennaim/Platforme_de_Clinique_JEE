@@ -84,8 +84,22 @@ function animateCounter(element) {
   }, 16)
 }
 
+// Update stats with real data
+function updateStats() {
+  const appointmentsCount = (window.appointmentsData || []).length;
+  
+  // Update first stat card (Rendez-vous à venir) with real count
+  const statValues = document.querySelectorAll(".stat-value");
+  if (statValues.length > 0) {
+    statValues[0].setAttribute("data-target", appointmentsCount);
+  }
+}
+
 // Animate all stat counters on page load
 document.addEventListener("DOMContentLoaded", () => {
+  // Update stats with real data first
+  updateStats();
+  
   const statValues = document.querySelectorAll(".stat-value")
   statValues.forEach((stat) => animateCounter(stat))
 
@@ -102,32 +116,21 @@ document.addEventListener("DOMContentLoaded", () => {
 // Load upcoming appointments
 function loadUpcomingAppointments() {
   const container = document.getElementById("upcomingAppointments")
-  const appointments = [
-    {
-      day: "15",
-      month: "Jan",
-      title: "Consultation générale",
-      doctor: "Dr. Sarah Martin",
-      time: "10:00 - 10:30",
-      status: "confirmed",
-    },
-    {
-      day: "18",
-      month: "Jan",
-      title: "Suivi cardiologie",
-      doctor: "Dr. Ahmed Benali",
-      time: "14:00 - 14:45",
-      status: "confirmed",
-    },
-    {
-      day: "22",
-      month: "Jan",
-      title: "Contrôle annuel",
-      doctor: "Dr. Marie Dubois",
-      time: "09:00 - 09:30",
-      status: "pending",
-    },
-  ]
+  
+  // Use real appointments data from backend - take first 3
+  const appointments = (window.appointmentsData || []).slice(0, 3).map(apt => {
+    const startDate = new Date(apt.start);
+    const endDate = new Date(apt.end);
+    
+    return {
+      day: startDate.getDate().toString().padStart(2, '0'),
+      month: startDate.toLocaleDateString('fr-FR', { month: 'short' }),
+      title: apt.appointmentType || "Consultation",
+      doctor: apt.doctorName || "Médecin",
+      time: `${startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - ${endDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+      status: apt.status || "confirmed"
+    };
+  })
 
   container.innerHTML = appointments
     .map(
@@ -261,35 +264,22 @@ function loadHealthMetrics() {
 // Load appointments for appointments section
 function loadAppointments() {
   const container = document.getElementById("appointmentsGrid")
-  const appointments = [
-    {
-      day: "15",
-      month: "Jan",
-      title: "Consultation générale",
-      doctor: "Dr. Sarah Martin",
-      specialty: "Médecine générale",
-      time: "10:00 - 10:30",
-      status: "confirmed",
-    },
-    {
-      day: "18",
-      month: "Jan",
-      title: "Suivi cardiologie",
-      doctor: "Dr. Ahmed Benali",
-      specialty: "Cardiologie",
-      time: "14:00 - 14:45",
-      status: "confirmed",
-    },
-    {
-      day: "22",
-      month: "Jan",
-      title: "Contrôle annuel",
-      doctor: "Dr. Marie Dubois",
-      specialty: "Médecine générale",
-      time: "09:00 - 09:30",
-      status: "pending",
-    },
-  ]
+  
+  // Use real appointments data from backend
+  const appointments = (window.appointmentsData || []).map(apt => {
+    const startDate = new Date(apt.start);
+    const endDate = new Date(apt.end);
+    
+    return {
+      day: startDate.getDate().toString().padStart(2, '0'),
+      month: startDate.toLocaleDateString('fr-FR', { month: 'short' }),
+      title: apt.appointmentType || "Consultation",
+      doctor: apt.doctorName || "Médecin",
+      specialty: apt.doctorSpecialty || "Spécialité",
+      time: `${startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - ${endDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
+      status: apt.status || "confirmed"
+    };
+  })
 
   container.innerHTML = appointments
     .map(
@@ -365,31 +355,26 @@ function loadMedicalRecords() {
 // Load prescriptions
 function loadPrescriptions() {
   const container = document.getElementById("prescriptionsGrid")
+  
+  // Sample prescriptions data (TODO: Replace with real data from backend)
   const prescriptions = [
     {
       doctor: "Dr. Sarah Martin",
       date: "10 Janvier 2025",
       status: "active",
       medications: [
-        { name: "Paracétamol", dosage: "500mg - 3x par jour" },
-        { name: "Ibuprofène", dosage: "200mg - 2x par jour" },
-      ],
+        { name: "Paracétamol", dosage: "500mg - 3x/jour" },
+        { name: "Vitamine D", dosage: "1000 UI - 1x/jour" }
+      ]
     },
     {
       doctor: "Dr. Ahmed Benali",
       date: "5 Janvier 2025",
       status: "active",
       medications: [
-        { name: "Aspirine", dosage: "100mg - 1x par jour" },
-        { name: "Vitamine D", dosage: "1000 UI - 1x par jour" },
-      ],
-    },
-    {
-      doctor: "Dr. Marie Dubois",
-      date: "20 Décembre 2024",
-      status: "expired",
-      medications: [{ name: "Amoxicilline", dosage: "500mg - 3x par jour" }],
-    },
+        { name: "Aspirine", dosage: "100mg - 1x/jour" }
+      ]
+    }
   ]
 
   container.innerHTML = prescriptions

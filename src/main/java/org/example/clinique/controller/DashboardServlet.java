@@ -27,7 +27,7 @@ public class DashboardServlet extends HttpServlet {
         // Rediriger vers le dashboard approprié selon le rôle
         String dashboardUrl = switch (user.getRole()) {
             case DOCTOR -> "/dashboard-doctor.jsp";
-            case PATIENT -> "/dashboard-patient.jsp";
+            case PATIENT -> "/reserver?action=viewDashboard"; // Use ReservationServlet to load patient dashboard with data
             case ADMIN -> "/dashboard-admin.jsp";
             case STAFF -> "/dashboard-staff.jsp";
             default -> "/dashboard.jsp";

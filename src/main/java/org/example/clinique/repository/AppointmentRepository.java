@@ -23,7 +23,7 @@ public class AppointmentRepository {
         }
     }
 
-    public List<Appointment> findUpcomingByPatient(Long patientId, LocalDateTime from, int maxResults) {
+    public List<Appointment> findUpcomingByPatient(Long patientId, LocalDateTime from) {
         TypedQuery<Appointment> query = em.createQuery(
                 "SELECT a FROM Appointment a " +
                         "WHERE a.patient.id = :patientId AND a.startDatetime >= :from " +
@@ -32,9 +32,18 @@ public class AppointmentRepository {
         );
         query.setParameter("patientId", patientId);
         query.setParameter("from", from);
-        if (maxResults > 0) {
-            query.setMaxResults(maxResults);
-        }
+        return query.getResultList();
+    }
+
+    public List<Appointment> findUpcomingByDoctor(Long doctorId, LocalDateTime from) {
+        TypedQuery<Appointment> query = em.createQuery(
+                "SELECT a FROM Appointment a " +
+                        "WHERE a.doctor.id = :doctorId AND a.startDatetime >= :from " +
+                        "ORDER BY a.startDatetime ASC",
+                Appointment.class
+        );
+        query.setParameter("doctorId", doctorId);
+        query.setParameter("from", from);
         return query.getResultList();
     }
 

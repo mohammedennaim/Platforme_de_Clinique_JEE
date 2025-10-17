@@ -46,6 +46,21 @@ public class ReservationServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        String action = req.getParameter("action");
+        if ("viewDashboard".equals(action)) {
+            User sessionUser = (User) req.getSession().getAttribute("user");
+            EntityManager em = emf.createEntityManager();
+            try {
+                AppointmentService appointmentService = new AppointmentService(em);
+                PatientRepository patientRepository = new PatientRepository(em);
+                Patient patient = patientRepository.findById(sessionUser.getId());
+                forwardToViewdashboardPatient(req, resp, appointmentService, patient, sessionUser);
+            } finally {
+                em.close();
+            }
+            return;
+        }
+
         HttpSession session = req.getSession(false);
         if (session == null) {
             resp.sendRedirect(req.getContextPath() + "/index.jsp");
@@ -199,6 +214,18 @@ public class ReservationServlet extends HttpServlet {
         req.getRequestDispatcher("/reserver.jsp").forward(req, resp);
     }
 
+    private void forwardToViewdashboardPatient(HttpServletRequest req,
+                               HttpServletResponse resp,
+                               AppointmentService appointmentService,
+                               Patient patient,
+                               User sessionUser) throws ServletException, IOException {
+        populateReferenceData(req, appointmentService, patient);
+        req.setAttribute("patientEntity", patient);
+        req.setAttribute("patientUser", sessionUser);
+        req.setAttribute("todayDate", LocalDate.now().toString());
+        req.getRequestDispatcher("/dashboard-patient.jsp").forward(req, resp);
+    }
+
     private void populateReferenceData(HttpServletRequest req,
                                        AppointmentService appointmentService,
                                        Patient patient) {
@@ -207,12 +234,11 @@ public class ReservationServlet extends HttpServlet {
                 .map(AppointmentMapper::toAvailabilityDTO)
                 .collect(Collectors.toList());
         List<AppointmentResponseDTO> appointmentDTOs = appointmentService
-                .getUpcomingAppointmentsForPatient(patient.getId(), 20)
+                .getUpcomingAppointmentsForPatient(patient.getId())
                 .stream()
                 .map(AppointmentMapper::toResponseDTO)
                 .collect(Collectors.toList());
 
-        // Récupérer TOUTES les disponibilités futures avec time slots pour chaque médecin
         List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> allAvailabilitiesWithSlots = new ArrayList<>();
         for (DoctorSummaryDTO doctor : doctorSummaries) {
             List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> doctorAvailabilities = 
@@ -319,9 +345,17 @@ public class ReservationServlet extends HttpServlet {
             builder.append(',');
             builder.append("\"doctorId\":").append(appointment.getDoctorId() != null ? appointment.getDoctorId() : "null");
             builder.append(',');
+            builder.append("\"doctorName\":\"").append(escapeJson(appointment.getDoctorName() != null ? appointment.getDoctorName() : "")).append('\"');
+            builder.append(',');
+            builder.append("\"doctorSpecialty\":\"").append(escapeJson(appointment.getDoctorSpecialty() != null ? appointment.getDoctorSpecialty() : "")).append('\"');
+            builder.append(',');
             builder.append("\"start\":\"").append(escapeJson(appointment.getStart())).append('\"');
             builder.append(',');
             builder.append("\"end\":\"").append(escapeJson(appointment.getEnd())).append('\"');
+            builder.append(',');
+            builder.append("\"status\":\"").append(escapeJson(appointment.getStatus() != null ? appointment.getStatus() : "confirmed")).append('\"');
+            builder.append(',');
+            builder.append("\"appointmentType\":\"").append(escapeJson(appointment.getAppointmentType() != null ? appointment.getAppointmentType() : "Consultation")).append('\"');
             builder.append('}');
             first = false;
         }
