@@ -469,44 +469,33 @@ function loadPrescriptions() {
 // Load doctors
 function loadDoctors() {
   const container = document.getElementById("doctorsGrid")
-  const doctors = [
-    {
-      name: "Dr. Sarah Martin",
-      specialty: "Médecine générale",
-      rating: 4.8,
-      initials: "SM",
-    },
-    {
-      name: "Dr. Ahmed Benali",
-      specialty: "Cardiologie",
-      rating: 4.9,
-      initials: "AB",
-    },
-    {
-      name: "Dr. Marie Dubois",
-      specialty: "Pédiatrie",
-      rating: 4.7,
-      initials: "MD",
-    },
-    {
-      name: "Dr. Hassan Alami",
-      specialty: "Dermatologie",
-      rating: 4.6,
-      initials: "HA",
-    },
-    {
-      name: "Dr. Fatima Zahra",
-      specialty: "Gynécologie",
-      rating: 4.9,
-      initials: "FZ",
-    },
-    {
-      name: "Dr. Karim Idrissi",
-      specialty: "Orthopédie",
-      rating: 4.8,
-      initials: "KI",
-    },
-  ]
+  
+  // Extract unique doctors from patient's appointments
+  const doctorsMap = new Map();
+  (window.appointmentsData || []).forEach(apt => {
+    if (apt.doctorId && apt.doctorName) {
+      if (!doctorsMap.has(apt.doctorId)) {
+        // Extract initials from doctor name
+        const nameParts = apt.doctorName.split(' ');
+        const initials = nameParts.map(part => part.charAt(0).toUpperCase()).join('').slice(0, 2);
+        
+        doctorsMap.set(apt.doctorId, {
+          id: apt.doctorId,
+          name: apt.doctorName,
+          specialty: apt.doctorSpecialty || 'Médecine générale',
+          initials: initials,
+          rating: 4.8 // Default rating
+        });
+      }
+    }
+  });
+  
+  const doctors = Array.from(doctorsMap.values());
+  
+  if (doctors.length === 0) {
+    container.innerHTML = '<p class="placeholder">Aucun médecin trouvé dans votre historique</p>';
+    return;
+  }
 
   container.innerHTML = doctors
     .map(
@@ -523,7 +512,7 @@ function loadDoctors() {
             </div>
             <div class="doctor-actions">
                 <button class="doctor-btn">Profil</button>
-                <button class="doctor-btn primary">Prendre RDV</button>
+          <a href="${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, '')}/reserver?doctorId=${doctor.id}&specialty=${encodeURIComponent(doctor.specialty)}#timeSlots" class="doctor-btn primary">Prendre RDV</a>
             </div>
         </div>
     `,

@@ -51,7 +51,57 @@ document.addEventListener('DOMContentLoaded', function() {
   loadData();
   renderSpecialties();
   initializeCalendar();
+  
+  // Check for URL parameters to pre-select doctor
+  const urlParams = new URLSearchParams(window.location.search);
+  const doctorId = urlParams.get('doctorId');
+  const specialty = urlParams.get('specialty');
+  
+  if (doctorId && specialty) {
+    // Auto-select specialty and doctor from URL parameters
+    setTimeout(() => {
+      autoSelectFromUrl(specialty, parseInt(doctorId));
+    }, 100);
+  }
 });
+
+// ========================================
+// Auto-select Specialty and Doctor from URL
+// ========================================
+function autoSelectFromUrl(specialtyName, doctorId) {
+  // Step 1: Select specialty
+  selectedSpecialty = specialtyName;
+  
+  // Step 2: Select doctor
+  const doctor = doctors.find(d => d.id === doctorId);
+  if (!doctor) {
+    console.error('Doctor not found:', doctorId);
+    return;
+  }
+  
+  selectedDoctor = doctor;
+  
+  // Try to find the next availability date for this doctor from nextAvailabilitiesWithSlots
+  const now = new Date();
+  const nextAvail = nextAvailabilitiesWithSlots
+    .filter(av => String(av.doctorId) === String(doctorId) && av.timeSlots && av.timeSlots.length > 0)
+    .map(av => ({...av, dateObj: new Date(av.availabilityDate)}))
+    .filter(av => av.dateObj >= new Date(now.toISOString().substring(0,10)))
+    .sort((a,b) => a.dateObj - b.dateObj)[0];
+
+  if (nextAvail) {
+    selectedDate = new Date(nextAvail.availabilityDate + 'T00:00:00');
+  }
+  
+  // Go directly to step 3 (calendar/time slots)
+  setStep(3);
+  
+  // Scroll the timeSlots container into view after rendering
+  setTimeout(() => {
+    const el = document.getElementById('timeSlots');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 300);
+}
 
 // ========================================
 // Load Data from Server
