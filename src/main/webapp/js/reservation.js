@@ -81,7 +81,6 @@ function autoSelectFromUrl(specialtyName, doctorId) {
   
   selectedDoctor = doctor;
   
-  // Try to find the next availability date for this doctor from nextAvailabilitiesWithSlots
   const now = new Date();
   const nextAvail = nextAvailabilitiesWithSlots
     .filter(av => String(av.doctorId) === String(doctorId) && av.timeSlots && av.timeSlots.length > 0)
@@ -93,10 +92,8 @@ function autoSelectFromUrl(specialtyName, doctorId) {
     selectedDate = new Date(nextAvail.availabilityDate + 'T00:00:00');
   }
   
-  // Go directly to step 3 (calendar/time slots)
   setStep(3);
   
-  // Scroll the timeSlots container into view after rendering
   setTimeout(() => {
     const el = document.getElementById('timeSlots');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -173,7 +173,7 @@ function loadUpcomingAppointments() {
                 <div class="appointment-doctor">${apt.doctor}</div>
                 <div class="appointment-time">${apt.time}</div>
             </div>
-            <span class="appointment-status ${apt.statusClass}">
+            <span class="appointment-status-2 ${apt.statusClass}">
                 ${apt.statusText}
             </span>
         </div>
@@ -317,6 +317,7 @@ function loadAppointments() {
     }
     
     return {
+      id: apt.id,
       day: startDate.getDate().toString().padStart(2, '0'),
       month: startDate.toLocaleDateString('fr-FR', { month: 'short' }),
       title: apt.appointmentType || "Consultation",
@@ -343,9 +344,19 @@ function loadAppointments() {
                     <div class="appointment-doctor">${apt.doctor} - ${apt.specialty}</div>
                     <div class="appointment-time">${apt.time}</div>
                 </div>
-                <span class="appointment-status ${apt.statusClass}">
-                    ${apt.statusText}
-                </span>
+                <div class="appointment-actions">
+                    <span class="appointment-status ${apt.statusClass}">
+                        ${apt.statusText}
+                    </span>
+                    ${apt.status === 'PLANNED' ? `
+                        <button class="cancel-appointment-btn" onclick="cancelAppointment(${apt.id})" title="Annuler le rendez-vous">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    ` : ''}
+                </div>
             </div>
         </div>
     `,
@@ -567,3 +578,85 @@ document.addEventListener("keydown", (e) => {
     notificationDropdown.classList.toggle("active")
   }
 })
+
+// ========================================
+// Cancel Appointment Function
+// ========================================
+let pendingCancelAppointmentId = null;
+
+function cancelAppointment(appointmentId) {
+  if (!appointmentId) {
+    showToast("ID de rendez-vous invalide", "error");
+    return;
+  }
+  
+  // Store the appointment ID and show modal
+  pendingCancelAppointmentId = appointmentId;
+  const modal = document.getElementById('cancelModal');
+  if (modal) {
+    modal.classList.add('active');
+  }
+}
+
+function closeCancelModal() {
+  pendingCancelAppointmentId = null;
+  const modal = document.getElementById('cancelModal');
+  if (modal) {
+    modal.classList.remove('active');
+  }
+}
+
+async function confirmCancelAppointment() {
+  if (!pendingCancelAppointmentId) {
+    showToast("ID de rendez-vous invalide", "error");
+    closeCancelModal();
+    return;
+  }
+  
+  const appointmentId = pendingCancelAppointmentId;
+  closeCancelModal();
+  
+  try {
+    const response = await fetch(`${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, '')}/api/appointments/cancel?id=${appointmentId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'same-origin'
+    });
+    
+    if (response.ok) {
+      showToast("Rendez-vous annulé avec succès", "success");
+      
+      // Update appointment status in local data
+      const appointment = window.appointmentsData.find(apt => apt.id === appointmentId);
+      if (appointment) {
+        appointment.status = 'CANCELED';
+      }
+      
+      // Reload appointments displays
+      loadAppointments();
+      loadUpcomingAppointments();
+      updateStats();
+    } else {
+      const errorText = await response.text();
+      try {
+        const errorJson = JSON.parse(errorText);
+        showToast(errorJson.error || "Erreur lors de l'annulation", "error");
+      } catch (e) {
+        showToast("Erreur lors de l'annulation du rendez-vous", "error");
+      }
+    }
+  } catch (error) {
+    console.error('Error canceling appointment:', error);
+    showToast("Erreur lors de l'annulation du rendez-vous", "error");
+  }
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+  const modal = document.getElementById('cancelModal');
+  if (modal && event.target === modal) {
+    closeCancelModal();
+  }
+});
