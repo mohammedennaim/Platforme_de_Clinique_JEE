@@ -3,6 +3,7 @@
   --primary-dark: #2563eb;
   --success: #10b981;
   --success-dark: #059669;
+  --warning: #f59e0b;
   --danger: #ef4444;
   --gray-50: #f9fafb;
   --gray-100: #f3f4f6;
@@ -318,6 +319,27 @@ body {
   cursor: not-allowed;
 }
 
+.calendar-day.has-appointment {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--gray-100),
+    var(--gray-100) 10px,
+    var(--gray-200) 10px,
+    var(--gray-200) 20px
+  );
+  border-color: var(--warning);
+  opacity: 0.6;
+  position: relative;
+}
+
+.calendar-day.has-appointment::after {
+  content: "📅";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 0.75rem;
+}
+
 .day-name {
   font-size: 0.75rem;
   font-weight: 600;
@@ -577,5 +599,120 @@ body {
   .btn {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* Conflict Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-icon {
+  font-size: 3rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.modal-icon.warning {
+  color: var(--warning);
+}
+
+.modal-content h3 {
+  text-align: center;
+  color: var(--gray-900);
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.conflict-message {
+  background: var(--gray-50);
+  border-left: 4px solid var(--warning);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: var(--radius);
+  color: var(--gray-700);
+  line-height: 1.6;
+}
+
+.conflict-question {
+  text-align: center;
+  color: var(--gray-600);
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.conflict-form {
+  margin: 0;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-direction: column;
+}
+
+.modal-buttons .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-warning {
+  background: #f59e0b;
+  color: var(--white);
+  border: none;
+}
+
+.btn-warning:hover {
+  background: #d97706;
+}
+
+@media (max-width: 768px) {
+  .modal-content {
+    padding: 1.5rem;
+    width: 95%;
+  }
+  
+  .modal-icon {
+    font-size: 2.5rem;
   }
 }

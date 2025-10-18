@@ -3,8 +3,10 @@ package org.example.clinique.repository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import org.example.clinique.entity.Appointment;
+import org.example.clinique.entity.enums.AppointmentStatus;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 public class AppointmentRepository {
@@ -21,6 +23,20 @@ public class AppointmentRepository {
         } else {
             em.merge(appointment);
         }
+    }
+
+    public List<Appointment> getAppointmentsForDate(Long doctorId, LocalDateTime date) {
+
+        TypedQuery<Appointment> query = em.createQuery(
+                "SELECT a FROM Appointment a " +
+                        "WHERE a.doctor.id = :doctorId " +
+                        "AND a.startDatetime >= :date " +
+                        "ORDER BY a.startDatetime ASC",
+                Appointment.class
+        );
+        query.setParameter("doctorId", doctorId);
+        query.setParameter("date", date);
+        return query.getResultList();
     }
 
     public List<Appointment> findUpcomingByPatient(Long patientId, LocalDateTime from) {
@@ -68,14 +84,62 @@ public class AppointmentRepository {
         TypedQuery<Appointment> query = em.createQuery(
                 "SELECT a FROM Appointment a " +
                         "WHERE a.doctor.id = :doctorId " +
+                        "AND a.status != :cancelled " +
                         "AND a.startDatetime >= :startOfDay " +
                         "AND a.startDatetime < :endOfDay " +
                         "ORDER BY a.startDatetime ASC",
                 Appointment.class
         );
         query.setParameter("doctorId", doctorId);
+        query.setParameter("cancelled", AppointmentStatus.CANCELED);
         query.setParameter("startOfDay", startOfDay);
         query.setParameter("endOfDay", endOfDay);
         return query.getResultList();
+    }
+
+    public boolean existsByPatientAndDate(Long patientId, LocalDate date) {
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
+
+        Long count = em.createQuery(
+                "SELECT COUNT(a) FROM Appointment a " +
+                        "WHERE a.patient.id = :patientId " +
+                        "AND a.status != :cancelled " +
+                        "AND a.startDatetime >= :startOfDay " +
+                        "AND a.startDatetime < :endOfDay",
+                Long.class
+        )
+                .setParameter("patientId", patientId)
+                .setParameter("cancelled", AppointmentStatus.CANCELED)
+                .setParameter("startOfDay", startOfDay)
+                .setParameter("endOfDay", endOfDay)
+                .getSingleResult();
+
+        return count != null && count > 0;
+    }
+
+    public List<Appointment> findConflictingAppointmentsForPatient(Long patientId, LocalDateTime start, LocalDateTime end) {
+        TypedQuery<Appointment> query = em.createQuery(
+                "SELECT a FROM Appointment a JOIN FETCH a.doctor d JOIN FETCH d.specialty " +
+                        "WHERE a.patient.id = :patientId " +
+                        "AND a.status != :cancelled " +
+                        "AND a.startDatetime < :end " +
+                        "AND a.endDatetime > :start " +
+                        "ORDER BY a.startDatetime ASC",
+                Appointment.class
+        );
+        query.setParameter("patientId", patientId);
+        query.setParameter("cancelled", AppointmentStatus.CANCELED);
+        query.setParameter("start", start);
+        query.setParameter("end", end);
+        return query.getResultList();
+    }
+
+    public void cancelAppointment(Long appointmentId) {
+        Appointment appointment = em.find(Appointment.class, appointmentId);
+        if (appointment != null) {
+            appointment.setStatus(AppointmentStatus.CANCELED);
+            em.merge(appointment);
+        }
     }
 }

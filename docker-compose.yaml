@@ -16,7 +16,10 @@ services:
       - DB_DATABASE=clinique-db
       - DB_USER=clinique
       - DB_PASSWORD=clinique123
+      - TZ=Africa/Casablanca
     volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
       - ./src/main/webapp:/usr/local/tomcat/webapps/ROOT
       - ./target/clinique-digitale-1.0-SNAPSHOT/WEB-INF/lib:/usr/local/tomcat/webapps/ROOT/WEB-INF/lib
       - ./libs/special-lib.jar:/usr/local/tomcat/webapps/ROOT/WEB-INF/lib/special-lib.jar

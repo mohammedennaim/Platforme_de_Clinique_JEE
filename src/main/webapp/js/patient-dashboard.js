@@ -86,7 +86,10 @@ function animateCounter(element) {
 
 // Update stats with real data
 function updateStats() {
-  const appointmentsCount = (window.appointmentsData || []).length;
+  // Count only PLANNED appointments (exclude CANCELED and DONE)
+  const appointmentsCount = (window.appointmentsData || [])
+    .filter(apt => apt.status === "PLANNED" || apt.status === "CONFIRMED")
+    .length;
   
   // Update first stat card (Rendez-vous à venir) with real count
   const statValues = document.querySelectorAll(".stat-value");
@@ -117,10 +120,28 @@ document.addEventListener("DOMContentLoaded", () => {
 function loadUpcomingAppointments() {
   const container = document.getElementById("upcomingAppointments")
   
-  // Use real appointments data from backend - take first 3
-  const appointments = (window.appointmentsData || []).slice(0, 3).map(apt => {
+  // Filter out cancelled appointments and take first 3
+  const appointments = (window.appointmentsData || [])
+    .filter(apt => apt.status !== "CANCELED" && apt.status !== "CANCELLED")
+    .slice(0, 3)
+    .map(apt => {
     const startDate = new Date(apt.start);
     const endDate = new Date(apt.end);
+    
+    // Déterminer le statut en français
+    let statusText = "En attente";
+    let statusClass = "pending";
+    
+    if (apt.status === "CONFIRMED") {
+      statusText = "Confirmé";
+      statusClass = "confirmed";
+    } else if (apt.status === "COMPLETED" || apt.status === "DONE") {
+      statusText = "Terminé";
+      statusClass = "completed";
+    } else if (apt.status === "PLANNED") {
+      statusText = "Planifié";
+      statusClass = "pending";
+    }
     
     return {
       day: startDate.getDate().toString().padStart(2, '0'),
@@ -128,7 +149,9 @@ function loadUpcomingAppointments() {
       title: apt.appointmentType || "Consultation",
       doctor: apt.doctorName || "Médecin",
       time: `${startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - ${endDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
-      status: apt.status || "confirmed"
+      status: apt.status || "PENDING",
+      statusText: statusText,
+      statusClass: statusClass
     };
   })
 
@@ -145,8 +168,8 @@ function loadUpcomingAppointments() {
                 <div class="appointment-doctor">${apt.doctor}</div>
                 <div class="appointment-time">${apt.time}</div>
             </div>
-            <span class="appointment-status ${apt.status}">
-                ${apt.status === "confirmed" ? "Confirmé" : "En attente"}
+            <span class="appointment-status ${apt.statusClass}">
+                ${apt.statusText}
             </span>
         </div>
     `,
@@ -270,6 +293,24 @@ function loadAppointments() {
     const startDate = new Date(apt.start);
     const endDate = new Date(apt.end);
     
+    // Déterminer le statut en français
+    let statusText = "En attente";
+    let statusClass = "pending";
+    
+    if (apt.status === "CONFIRMED") {
+      statusText = "Confirmé";
+      statusClass = "confirmed";
+    } else if (apt.status === "CANCELED") {
+      statusText = "Annulé";
+      statusClass = "cancelled";
+    } else if (apt.status === "COMPLETED" || apt.status === "DONE") {
+      statusText = "Terminé";
+      statusClass = "completed";
+    } else if (apt.status === "PLANNED") {
+      statusText = "Planifié";
+      statusClass = "pending";
+    }
+    
     return {
       day: startDate.getDate().toString().padStart(2, '0'),
       month: startDate.toLocaleDateString('fr-FR', { month: 'short' }),
@@ -277,7 +318,9 @@ function loadAppointments() {
       doctor: apt.doctorName || "Médecin",
       specialty: apt.doctorSpecialty || "Spécialité",
       time: `${startDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - ${endDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
-      status: apt.status || "confirmed"
+      status: apt.status || "PENDING",
+      statusText: statusText,
+      statusClass: statusClass
     };
   })
 
@@ -295,8 +338,8 @@ function loadAppointments() {
                     <div class="appointment-doctor">${apt.doctor} - ${apt.specialty}</div>
                     <div class="appointment-time">${apt.time}</div>
                 </div>
-                <span class="appointment-status ${apt.status}">
-                    ${apt.status === "confirmed" ? "Confirmé" : "En attente"}
+                <span class="appointment-status ${apt.statusClass}">
+                    ${apt.statusText}
                 </span>
             </div>
         </div>

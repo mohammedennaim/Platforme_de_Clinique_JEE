@@ -12,6 +12,8 @@ import org.example.clinique.repository.AppointmentRepository;
 import org.example.clinique.repository.AvailabilityRepository;
 import org.example.clinique.repository.DoctorRepository;
 import org.example.clinique.repository.PatientRepository;
+import org.example.clinique.dto.AvailabilityTimeSlotsDTO;
+import org.example.clinique.mapper.AppointmentMapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -100,7 +102,7 @@ public class AppointmentService {
         return doctorRepository.findAll();
     }
 
-    public org.example.clinique.dto.AvailabilityTimeSlotsDTO getNextAvailabilityForDoctor(Long doctorId) {
+    public AvailabilityTimeSlotsDTO getNextAvailabilityForDoctor(Long doctorId) {
         if (doctorId == null) {
             return null;
         }
@@ -109,12 +111,11 @@ public class AppointmentService {
         
         if (availabilityOpt.isPresent()) {
             Availability availability = availabilityOpt.get();
-            // Get existing appointments for this doctor on this date
             List<Appointment> appointments = appointmentRepository.findByDoctorAndDate(
                 doctorId, 
                 availability.getAvailabilityDate()
             );
-            return org.example.clinique.mapper.AppointmentMapper.toAvailabilityTimeSlotsDTO(
+            return AppointmentMapper.toAvailabilityTimeSlotsDTO(
                 availability, 
                 appointments
             );
@@ -123,13 +124,13 @@ public class AppointmentService {
         return null;
     }
     
-    public List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> getAllAvailabilityTimeSlotsForDoctor(Long doctorId) {
+    public List<AvailabilityTimeSlotsDTO> getAllAvailabilityTimeSlotsForDoctor(Long doctorId) {
         if (doctorId == null) {
             return List.of();
         }
 
-        List<Availability> availabilities = availabilityRepository.findAvailabilitiesByDoctor(doctorId);
-        List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> result = new java.util.ArrayList<>();
+        List<Availability> availabilities = availabilityRepository.findAvailabilitiesByDoctor(doctorId);        
+        List<AvailabilityTimeSlotsDTO> result = new java.util.ArrayList<>();
         
         for (Availability availability : availabilities) {
             if (availability.getAvailabilityDate() == null || 
@@ -138,14 +139,13 @@ public class AppointmentService {
                 continue;
             }
             
-            // Get existing appointments for this doctor on this date
             List<Appointment> appointments = appointmentRepository.findByDoctorAndDate(
                 doctorId, 
                 availability.getAvailabilityDate()
             );
             
-            org.example.clinique.dto.AvailabilityTimeSlotsDTO dto = 
-                org.example.clinique.mapper.AppointmentMapper.toAvailabilityTimeSlotsDTO(
+            AvailabilityTimeSlotsDTO dto = 
+                AppointmentMapper.toAvailabilityTimeSlotsDTO(
                     availability, 
                     appointments
                 );
@@ -160,5 +160,60 @@ public class AppointmentService {
 
     public List<Availability> listAllAvailabilities() {
         return availabilityRepository.findAllActive();
+    }
+
+    /**
+     * Check if patient has conflicting appointments in the same time slot
+     */
+    public List<Appointment> findConflictingAppointments(Long patientId, LocalDateTime start, LocalDateTime end) {
+        return appointmentRepository.findConflictingAppointmentsForPatient(patientId, start, end);
+    }
+
+    /**
+     * Cancel an existing appointment and create a new one
+     */
+    public Appointment replaceAppointment(Long oldAppointmentId, Long patientId, Long doctorId, 
+                                          LocalDateTime start, LocalDateTime end, AppointmentType type) {
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            
+            // Cancel old appointment
+            appointmentRepository.cancelAppointment(oldAppointmentId);
+            
+            // Create new appointment (without transaction since we're already in one)
+            Doctor doctor = doctorRepository.findById(doctorId);
+            if (doctor == null) {
+                throw new IllegalArgumentException("Médecin introuvable");
+            }
+
+            Patient patient = patientRepository.findById(patientId);
+            if (patient == null) {
+                throw new IllegalArgumentException("Patient introuvable");
+            }
+
+            if (appointmentRepository.existsOverlappingAppointment(doctorId, start, end)) {
+                throw new IllegalStateException("Ce créneau est déjà réservé");
+            }
+
+            Appointment appointment = new Appointment();
+            appointment.setDoctor(doctor);
+            appointment.setPatient(patient);
+            appointment.setStartDatetime(start);
+            appointment.setEndDatetime(end);
+            appointment.setAppointmentType(type != null ? type : AppointmentType.CONSULTATION);
+            appointment.setStatus(AppointmentStatus.PLANNED);
+            appointment.setCreatedAt(LocalDateTime.now());
+
+            appointmentRepository.save(appointment);
+            
+            tx.commit();
+            return appointment;
+        } catch (RuntimeException e) {
+            if (tx.isActive()) {
+                tx.rollback();
+            }
+            throw e;
+        }
     }
 }

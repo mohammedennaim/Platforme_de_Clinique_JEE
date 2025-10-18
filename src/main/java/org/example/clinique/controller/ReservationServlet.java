@@ -166,16 +166,59 @@ public class ReservationServlet extends HttpServlet {
                 return;
             }
 
+            // Check for conflicting appointments
+            String replaceAction = req.getParameter("replaceOld");
+            String oldAppointmentIdStr = req.getParameter("oldAppointmentId");
+            
+            List<Appointment> conflicts = appointmentService.findConflictingAppointments(patient.getId(), start, end);
+            
+            // If there are conflicts and user hasn't confirmed replacement yet
+            if (!conflicts.isEmpty() && !"confirm".equals(replaceAction)) {
+                Appointment conflictingAppt = conflicts.get(0);
+                Doctor conflictDoctor = conflictingAppt.getDoctor();
+                String conflictSpecialty = conflictDoctor != null && conflictDoctor.getSpecialty() != null 
+                    ? conflictDoctor.getSpecialty().getName() : "autre spécialité";
+                String conflictDoctorName = conflictDoctor != null 
+                    ? conflictDoctor.getTitle() + " " + conflictDoctor.getLastName() : "médecin";
+                
+                req.setAttribute("conflictWarning", true);
+                req.setAttribute("conflictMessage", 
+                    "Vous avez déjà un rendez-vous le " + conflictingAppt.getStartDatetime().toLocalDate() + 
+                    " à " + conflictingAppt.getStartDatetime().toLocalTime() + 
+                    " avec " + conflictDoctorName + " (" + conflictSpecialty + ").");
+                req.setAttribute("oldAppointmentId", conflictingAppt.getId());
+                forwardToView(req, resp, appointmentService, patient, sessionUser);
+                return;
+            }
+
             try {
-                Appointment appointment = appointmentService.createAppointment(
-                        patient.getId(),
-                        requestDTO.getDoctorId(),
-                        start,
-                        end,
-                        type
-                );
+                Appointment appointment;
+                
+                // If user confirmed replacement, cancel old and create new
+                if ("confirm".equals(replaceAction) && oldAppointmentIdStr != null) {
+                    Long oldAppointmentId = Long.parseLong(oldAppointmentIdStr);
+                    appointment = appointmentService.replaceAppointment(
+                            oldAppointmentId,
+                            patient.getId(),
+                            requestDTO.getDoctorId(),
+                            start,
+                            end,
+                            type
+                    );
+                    req.setAttribute("successMessage", "L'ancien rendez-vous a été annulé et le nouveau a été enregistré avec succès.");
+                } else {
+                    // No conflict or user chose to keep old appointment
+                    appointment = appointmentService.createAppointment(
+                            patient.getId(),
+                            requestDTO.getDoctorId(),
+                            start,
+                            end,
+                            type
+                    );
+                    req.setAttribute("successMessage", "Rendez-vous enregistré avec succès.");
+                }
+                
                 AppointmentResponseDTO responseDTO = AppointmentMapper.toResponseDTO(appointment);
-                req.setAttribute("successMessage", "Rendez-vous enregistré avec succès.");
                 req.setAttribute("createdAppointment", responseDTO);
 
                 req.setAttribute("formDoctorId", null);

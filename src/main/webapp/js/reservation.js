@@ -185,7 +185,8 @@ function renderCalendar() {
     const dayOfWeek = date.getDay();
     const isPast = date < today;
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-    const isDisabled = isPast; // Ne désactiver que les jours passés, pas les week-ends
+    
+    const isDisabled = isPast; // Désactiver uniquement les jours passés
     const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
     
     const classes = ['calendar-day'];
@@ -277,7 +278,7 @@ function isTimeSlotBooked(date, time) {
   
   return appointments.some(apt => {
     if (String(apt.doctorId) !== String(selectedDoctor.id)) return false;
-    if (apt.status === 'CANCELLED') return false;
+    if (apt.status === 'CANCELED') return false;
     
     const aptStart = apt.start ? apt.start.substring(0, 10) : '';
     const aptTime = apt.start ? apt.start.substring(11, 16) : '';

@@ -122,6 +122,36 @@
     </div>
   </div>
 
+  <!-- Conflict Warning Modal -->
+  <c:if test="${conflictWarning}">
+  <div class="modal-overlay" id="conflictModal">
+    <div class="modal-content">
+      <div class="modal-icon warning">⚠️</div>
+      <h3>Conflit de rendez-vous</h3>
+      <p class="conflict-message">${conflictMessage}</p>
+      <p class="conflict-question">Souhaitez-vous annuler l'ancien rendez-vous et le remplacer par celui-ci, ou conserver l'ancien ?</p>
+      
+      <form method="post" action="${pageContext.request.contextPath}/reserver" class="conflict-form">
+        <input type="hidden" name="doctorId" value="${formDoctorId}">
+        <input type="hidden" name="appointmentDate" value="${formDate}">
+        <input type="hidden" name="startTime" value="${formStartTime}">
+        <input type="hidden" name="duration" value="${formDuration}">
+        <input type="hidden" name="appointmentType" value="${formType}">
+        <input type="hidden" name="oldAppointmentId" value="${oldAppointmentId}">
+        
+        <div class="modal-buttons">
+          <button type="submit" name="replaceOld" value="confirm" class="btn btn-warning">
+            Remplacer l'ancien
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="closeConflictModal()">
+            Conserver l'ancien
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  </c:if>
+
   <script id="doctorsData" type="application/json">
     ${doctorsJson}
   </script>
@@ -139,5 +169,15 @@
   </script>
 
   <script src="js/reservation.js"></script>
+  <script>
+    function closeConflictModal() {
+      const modal = document.getElementById('conflictModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+      // Redirect to clear form state
+      window.location.href = '${pageContext.request.contextPath}/reserver';
+    }
+  </script>
 </body>
 </html>
