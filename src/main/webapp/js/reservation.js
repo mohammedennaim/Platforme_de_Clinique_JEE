@@ -186,16 +186,27 @@ function renderCalendar() {
     const isPast = date < today;
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     
-    const isDisabled = isPast; // Désactiver uniquement les jours passés
+    // Vérifier si le patient a déjà un RDV ce jour-là dans la MÊME spécialité
+    const dateISO = formatDateISO(date);
+    const hasAppointmentInSameSpecialty = selectedDoctor ? appointments.some(apt => {
+      if (apt.status === 'CANCELED') return false;
+      const aptDate = apt.start ? apt.start.split('T')[0] : null;
+      // Bloquer seulement si c'est la même spécialité que le médecin sélectionné
+      return aptDate === dateISO && apt.doctorSpecialty === selectedDoctor.specialty;
+    }) : false;
+    
+    const isDisabled = isPast || hasAppointmentInSameSpecialty;
     const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
     
     const classes = ['calendar-day'];
     if (isDisabled) classes.push('disabled');
+    if (hasAppointmentInSameSpecialty && !isPast) classes.push('has-appointment');
     if (isSelected) classes.push('selected');
 
     html += `
       <div class="${classes.join(' ')}" 
-           onclick="${isDisabled ? '' : `selectDate('${date.toISOString()}')`}">
+           onclick="${isDisabled ? '' : `selectDate('${date.toISOString()}')`}"
+           title="${hasAppointmentInSameSpecialty && !isPast ? 'Vous avez déjà un rendez-vous en ' + selectedDoctor.specialty + ' ce jour' : ''}">
         <div class="day-name">${shortDayNames[date.getDay()]}</div>
         <div class="day-number">${date.getDate()}</div>
       </div>
@@ -225,6 +236,19 @@ function renderTimeSlots() {
   }
 
   const selectedDateISO = formatDateISO(selectedDate);
+
+  // Vérifier si le patient a déjà un rendez-vous sur cette date dans la MÊME spécialité
+  const hasAppointmentInSameSpecialty = appointments.some(apt => {
+    if (apt.status === 'CANCELED') return false;
+    const aptDate = apt.start ? apt.start.split('T')[0] : null;
+    return aptDate === selectedDateISO && apt.doctorSpecialty === selectedDoctor.specialty;
+  });
+
+  // Si le patient a déjà un RDV dans la même spécialité, afficher un message
+  if (hasAppointmentInSameSpecialty) {
+    container.innerHTML = `<p class="placeholder">Vous avez déjà un rendez-vous en ${selectedDoctor.specialty} prévu ce jour-là</p>`;
+    return;
+  }
 
   // Chercher les time slots depuis le backend pour ce médecin et cette date
   const availabilityData = nextAvailabilitiesWithSlots.find(avail => {

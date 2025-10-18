@@ -86,15 +86,21 @@ function animateCounter(element) {
 
 // Update stats with real data
 function updateStats() {
-  // Count only PLANNED appointments (exclude CANCELED and DONE)
-  const appointmentsCount = (window.appointmentsData || [])
+  // Count only PLANNED/CONFIRMED appointments for "Rendez-vous à venir"
+  const upcomingCount = (window.appointmentsData || [])
     .filter(apt => apt.status === "PLANNED" || apt.status === "CONFIRMED")
     .length;
   
-  // Update first stat card (Rendez-vous à venir) with real count
+  // Count ALL appointments (PLANNED, CANCELED, DONE) for "Consultations totales"
+  const totalCount = (window.appointmentsData || []).length;
+  
+  // Update stat cards with real counts
   const statValues = document.querySelectorAll(".stat-value");
   if (statValues.length > 0) {
-    statValues[0].setAttribute("data-target", appointmentsCount);
+    statValues[0].setAttribute("data-target", upcomingCount); // Rendez-vous à venir
+  }
+  if (statValues.length > 2) {
+    statValues[2].setAttribute("data-target", totalCount); // Consultations totales
   }
 }
 
@@ -120,10 +126,9 @@ document.addEventListener("DOMContentLoaded", () => {
 function loadUpcomingAppointments() {
   const container = document.getElementById("upcomingAppointments")
   
-  // Filter out cancelled appointments and take first 3
+  // Filter out cancelled appointments - show all upcoming appointments
   const appointments = (window.appointmentsData || [])
     .filter(apt => apt.status !== "CANCELED" && apt.status !== "CANCELLED")
-    .slice(0, 3)
     .map(apt => {
     const startDate = new Date(apt.start);
     const endDate = new Date(apt.end);

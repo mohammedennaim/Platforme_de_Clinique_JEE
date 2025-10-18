@@ -48,7 +48,19 @@ public class ReservationServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String action = req.getParameter("action");
         if ("viewDashboard".equals(action)) {
-            User sessionUser = (User) req.getSession().getAttribute("user");
+            // Vérifier si l'utilisateur est connecté
+            HttpSession session = req.getSession(false);
+            if (session == null) {
+                resp.sendRedirect(req.getContextPath() + "/index.jsp");
+                return;
+            }
+            
+            User sessionUser = (User) session.getAttribute("user");
+            if (sessionUser == null) {
+                resp.sendRedirect(req.getContextPath() + "/index.jsp");
+                return;
+            }
+            
             EntityManager em = emf.createEntityManager();
             try {
                 AppointmentService appointmentService = new AppointmentService(em);
@@ -70,7 +82,7 @@ public class ReservationServlet extends HttpServlet {
         User sessionUser = (User) session.getAttribute("user");
         String email = (String) session.getAttribute("userEmail");
         if (sessionUser == null || email == null || sessionUser.getRole() != Role.PATIENT) {
-            resp.sendRedirect(req.getContextPath() + "/dashboard");
+            resp.sendRedirect(req.getContextPath() + "/index.jsp");
             return;
         }
 
@@ -105,7 +117,7 @@ public class ReservationServlet extends HttpServlet {
         User sessionUser = (User) session.getAttribute("user");
         String email = (String) session.getAttribute("userEmail");
         if (sessionUser == null || email == null || sessionUser.getRole() != Role.PATIENT) {
-            resp.sendRedirect(req.getContextPath() + "/dashboard");
+            resp.sendRedirect(req.getContextPath() + "/index.jsp");
             return;
         }
 
@@ -115,7 +127,7 @@ public class ReservationServlet extends HttpServlet {
             PatientRepository patientRepository = new PatientRepository(em);
             Patient patient = patientRepository.findByEmail(email);
             if (patient == null) {
-                resp.sendRedirect(req.getContextPath() + "/dashboard");
+                resp.sendRedirect(req.getContextPath() + "/index.jsp");
                 return;
             }
 
