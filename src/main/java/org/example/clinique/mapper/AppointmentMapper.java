@@ -106,6 +106,13 @@ public final class AppointmentMapper {
     public static AvailabilityTimeSlotsDTO toAvailabilityTimeSlotsDTO(
             Availability availability, 
             List<Appointment> existingAppointments) {
+        return toAvailabilityTimeSlotsDTO(availability, existingAppointments, false);
+    }
+    
+    public static AvailabilityTimeSlotsDTO toAvailabilityTimeSlotsDTO(
+            Availability availability, 
+            List<Appointment> existingAppointments,
+            boolean isEditMode) {
         if (availability == null) {
             return null;
         }
@@ -122,12 +129,25 @@ public final class AppointmentMapper {
             availability.getEndTime()
         );
         
-        // Filter out time slots that are already booked
-        List<String> availableTimeSlots = filterAvailableSlots(
-            allTimeSlots,
-            existingAppointments,
-            availability.getAvailabilityDate()
-        );
+        // In edit mode, include all time slots
+        // In creation mode, filter out time slots that are already booked
+        List<String> availableTimeSlots;
+        if (isEditMode) {
+            availableTimeSlots = allTimeSlots; // Include all slots for editing
+        } else {
+            availableTimeSlots = filterAvailableSlots(
+                allTimeSlots,
+                existingAppointments,
+                availability.getAvailabilityDate()
+            );
+        }
+
+        System.out.println("Available time slots: " + availableTimeSlots);
+        System.out.println("Doctor name: " + doctorName);
+        System.out.println("Availability date: " + availability.getAvailabilityDate());
+        System.out.println("Start time: " + availability.getStartTime());
+        System.out.println("End time: " + availability.getEndTime());
+        System.out.println("Is edit mode: " + isEditMode);
         
         return new AvailabilityTimeSlotsDTO(
             doctor != null ? doctor.getId() : null,

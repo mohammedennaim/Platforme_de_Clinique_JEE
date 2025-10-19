@@ -23,6 +23,12 @@ public class DoctorRepository {
         return em.find(Doctor.class, id);
     }
 
+    public Doctor findByIdIncludingInactive(Long id) {
+        // This method should find doctors regardless of their active status
+        // em.find() will find any doctor by ID, including inactive ones
+        return em.find(Doctor.class, id);
+    }
+
     public Doctor findByEmail(String email) {
         try {
             return em.createQuery("SELECT d FROM Doctor d WHERE d.email = :email", Doctor.class)
@@ -44,7 +50,7 @@ public class DoctorRepository {
     }
 
     public List<Doctor> findAll() {
-        return em.createQuery("SELECT d FROM Doctor d ORDER BY d.lastName", Doctor.class)
+        return em.createQuery("SELECT d FROM Doctor d WHERE d.isActive = true ORDER BY d.lastName", Doctor.class)
                 .getResultList();
     }
 

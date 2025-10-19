@@ -716,6 +716,34 @@ body {
   gap: 8px;
 }
 
+.edit-appointment-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.edit-appointment-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  transform: scale(1.1);
+}
+
+.edit-appointment-btn:active {
+  transform: scale(0.95);
+}
+
+.edit-appointment-btn svg {
+  stroke: currentColor;
+}
+
 .cancel-appointment-btn {
   display: flex;
   align-items: center;

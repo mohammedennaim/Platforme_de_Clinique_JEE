@@ -349,6 +349,12 @@ function loadAppointments() {
                         ${apt.statusText}
                     </span>
                     ${apt.status === 'PLANNED' ? `
+                        <button class="edit-appointment-btn" onclick="editAppointment(${apt.id})" title="Modifier le rendez-vous">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
                         <button class="cancel-appointment-btn" onclick="cancelAppointment(${apt.id})" title="Annuler le rendez-vous">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -651,6 +657,35 @@ async function confirmCancelAppointment() {
     console.error('Error canceling appointment:', error);
     showToast("Erreur lors de l'annulation du rendez-vous", "error");
   }
+}
+
+// Edit appointment function - redirect to reservation page with appointment data
+function editAppointment(appointmentId) {
+  // Find the appointment in the data
+  const appointment = (window.appointmentsData || []).find(apt => apt.id === appointmentId);
+  
+  if (!appointment) {
+    showToast("Rendez-vous introuvable", "error");
+    return;
+  }
+  
+  // Store appointment data in sessionStorage for editing
+  // Parse the start datetime to extract date and time
+  const startDate = new Date(appointment.start);
+  const appointmentDate = startDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+  const startTime = startDate.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
+  
+  sessionStorage.setItem('editingAppointment', JSON.stringify({
+    id: appointment.id,
+    doctorId: appointment.doctorId,
+    specialty: appointment.doctorSpecialty,
+    appointmentDate: appointmentDate,
+    startTime: startTime,
+    notes: appointment.notes || ''
+  }));
+  
+  // Redirect to reservation page
+  window.location.href = 'reserver.jsp?edit=' + appointmentId;
 }
 
 // Close modal when clicking outside

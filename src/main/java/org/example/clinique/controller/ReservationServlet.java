@@ -26,9 +26,11 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class ReservationServlet extends HttpServlet {
@@ -54,13 +56,13 @@ public class ReservationServlet extends HttpServlet {
                 resp.sendRedirect(req.getContextPath() + "/index.jsp");
                 return;
             }
-            
+
             User sessionUser = (User) session.getAttribute("user");
             if (sessionUser == null) {
                 resp.sendRedirect(req.getContextPath() + "/index.jsp");
                 return;
             }
-            
+
             EntityManager em = emf.createEntityManager();
             try {
                 AppointmentService appointmentService = new AppointmentService(em);
@@ -178,58 +180,111 @@ public class ReservationServlet extends HttpServlet {
                 return;
             }
 
-            // Check for conflicting appointments
+            // EDIT or CREATE?
+            String editAppointmentIdStr = req.getParameter("editAppointmentId");
             String replaceAction = req.getParameter("replaceOld");
             String oldAppointmentIdStr = req.getParameter("oldAppointmentId");
-            
-            List<Appointment> conflicts = appointmentService.findConflictingAppointments(patient.getId(), start, end);
-            
-            // If there are conflicts and user hasn't confirmed replacement yet
-            if (!conflicts.isEmpty() && !"confirm".equals(replaceAction)) {
-                Appointment conflictingAppt = conflicts.get(0);
-                Doctor conflictDoctor = conflictingAppt.getDoctor();
-                String conflictSpecialty = conflictDoctor != null && conflictDoctor.getSpecialty() != null 
-                    ? conflictDoctor.getSpecialty().getName() : "autre spécialité";
-                String conflictDoctorName = conflictDoctor != null 
-                    ? conflictDoctor.getTitle() + " " + conflictDoctor.getLastName() : "médecin";
-                
-                req.setAttribute("conflictWarning", true);
-                req.setAttribute("conflictMessage", 
-                    "Vous avez déjà un rendez-vous le " + conflictingAppt.getStartDatetime().toLocalDate() + 
-                    " à " + conflictingAppt.getStartDatetime().toLocalTime() + 
-                    " avec " + conflictDoctorName + " (" + conflictSpecialty + ").");
-                req.setAttribute("oldAppointmentId", conflictingAppt.getId());
-                forwardToView(req, resp, appointmentService, patient, sessionUser);
-                return;
-            }
 
             try {
                 Appointment appointment;
-                
-                // If user confirmed replacement, cancel old and create new
-                if ("confirm".equals(replaceAction) && oldAppointmentIdStr != null) {
-                    Long oldAppointmentId = Long.parseLong(oldAppointmentIdStr);
-                    appointment = appointmentService.replaceAppointment(
-                            oldAppointmentId,
+
+                if (editAppointmentIdStr != null && !editAppointmentIdStr.trim().isEmpty()) {
+                    // EDIT MODE
+                    Long editAppointmentId = Long.parseLong(editAppointmentIdStr);
+
+                    // Detect patient conflicts excluding the appointment being edited
+                    List<Appointment> conflicts = appointmentService.findConflictingAppointmentsExcluding(
+                            patient.getId(), start, end, editAppointmentId
+                    );
+
+                    if (!conflicts.isEmpty() && !"confirm".equals(replaceAction)) {
+                        Appointment conflictingAppt = conflicts.get(0);
+                        Doctor conflictDoctor = conflictingAppt.getDoctor();
+                        String conflictSpecialty = conflictDoctor != null && conflictDoctor.getSpecialty() != null
+                                ? conflictDoctor.getSpecialty().getName() : "autre spécialité";
+                        String conflictDoctorName = conflictDoctor != null
+                                ? conflictDoctor.getTitle() + " " + conflictDoctor.getLastName() : "médecin";
+
+                        req.setAttribute("conflictWarning", true);
+                        req.setAttribute("conflictMessage",
+                                "Vous avez déjà un rendez-vous le " + conflictingAppt.getStartDatetime().toLocalDate() +
+                                        " à " + conflictingAppt.getStartDatetime().toLocalTime() +
+                                        " avec " + conflictDoctorName + " (" + conflictSpecialty + ").");
+                        req.setAttribute("oldAppointmentId", conflictingAppt.getId());
+
+                        // Preserve edit state in modal
+                        req.setAttribute("editAppointmentId", editAppointmentId);
+
+                        forwardToView(req, resp, appointmentService, patient, sessionUser);
+                        return;
+                    }
+
+                    // If user confirmed replacement, cancel the conflicting appointment then update
+                    if ("confirm".equals(replaceAction) && oldAppointmentIdStr != null && !oldAppointmentIdStr.isEmpty()) {
+                        Long conflictingId = Long.parseLong(oldAppointmentIdStr);
+                        appointmentService.cancelAppointment(conflictingId, patient.getId());
+                        req.setAttribute("successMessage", "L'autre rendez-vous a été annulé.");
+                    }
+
+                    // Update the appointment
+                    appointment = appointmentService.updateAppointment(
+                            editAppointmentId,
                             patient.getId(),
                             requestDTO.getDoctorId(),
                             start,
                             end,
                             type
                     );
-                    req.setAttribute("successMessage", "L'ancien rendez-vous a été annulé et le nouveau a été enregistré avec succès.");
+
+                    String previousMsg = (String) req.getAttribute("successMessage");
+                    req.setAttribute("successMessage",
+                            (previousMsg != null ? previousMsg + " " : "") + "Rendez-vous modifié avec succès.");
+
                 } else {
-                    // No conflict or user chose to keep old appointment
-                    appointment = appointmentService.createAppointment(
-                            patient.getId(),
-                            requestDTO.getDoctorId(),
-                            start,
-                            end,
-                            type
-                    );
-                    req.setAttribute("successMessage", "Rendez-vous enregistré avec succès.");
+                    // CREATE MODE
+                    List<Appointment> conflicts = appointmentService.findConflictingAppointments(patient.getId(), start, end);
+
+                    if (!conflicts.isEmpty() && !"confirm".equals(replaceAction)) {
+                        Appointment conflictingAppt = conflicts.get(0);
+                        Doctor conflictDoctor = conflictingAppt.getDoctor();
+                        String conflictSpecialty = conflictDoctor != null && conflictDoctor.getSpecialty() != null
+                                ? conflictDoctor.getSpecialty().getName() : "autre spécialité";
+                        String conflictDoctorName = conflictDoctor != null
+                                ? conflictDoctor.getTitle() + " " + conflictDoctor.getLastName() : "médecin";
+
+                        req.setAttribute("conflictWarning", true);
+                        req.setAttribute("conflictMessage",
+                                "Vous avez déjà un rendez-vous le " + conflictingAppt.getStartDatetime().toLocalDate() +
+                                        " à " + conflictingAppt.getStartDatetime().toLocalTime() +
+                                        " avec " + conflictDoctorName + " (" + conflictSpecialty + ").");
+                        req.setAttribute("oldAppointmentId", conflictingAppt.getId());
+                        forwardToView(req, resp, appointmentService, patient, sessionUser);
+                        return;
+                    }
+
+                    if ("confirm".equals(replaceAction) && oldAppointmentIdStr != null) {
+                        Long oldAppointmentId = Long.parseLong(oldAppointmentIdStr);
+                        appointment = appointmentService.replaceAppointment(
+                                oldAppointmentId,
+                                patient.getId(),
+                                requestDTO.getDoctorId(),
+                                start,
+                                end,
+                                type
+                        );
+                        req.setAttribute("successMessage", "L'ancien rendez-vous a été annulé et le nouveau a été enregistré avec succès.");
+                    } else {
+                        appointment = appointmentService.createAppointment(
+                                patient.getId(),
+                                requestDTO.getDoctorId(),
+                                start,
+                                end,
+                                type
+                        );
+                        req.setAttribute("successMessage", "Rendez-vous enregistré avec succès.");
+                    }
                 }
-                
+
                 AppointmentResponseDTO responseDTO = AppointmentMapper.toResponseDTO(appointment);
                 req.setAttribute("createdAppointment", responseDTO);
 
@@ -270,10 +325,10 @@ public class ReservationServlet extends HttpServlet {
     }
 
     private void forwardToViewdashboardPatient(HttpServletRequest req,
-                               HttpServletResponse resp,
-                               AppointmentService appointmentService,
-                               Patient patient,
-                               User sessionUser) throws ServletException, IOException {
+                                               HttpServletResponse resp,
+                                               AppointmentService appointmentService,
+                                               Patient patient,
+                                               User sessionUser) throws ServletException, IOException {
         populateReferenceData(req, appointmentService, patient);
         req.setAttribute("patientEntity", patient);
         req.setAttribute("patientUser", sessionUser);
@@ -294,15 +349,62 @@ public class ReservationServlet extends HttpServlet {
                 .map(AppointmentMapper::toResponseDTO)
                 .collect(Collectors.toList());
 
+        Set<Long> existingDoctorIds = new HashSet<>();
+        for (AppointmentResponseDTO appointment : appointmentDTOs) {
+            if (appointment.getDoctorId() != null) {
+                existingDoctorIds.add(appointment.getDoctorId());
+            }
+        }
+
+        // Add inactive doctors from existing appointments
+        for (Long doctorId : existingDoctorIds) {
+            Doctor doctor = appointmentService.getDoctorByIdIncludingInactive(doctorId);
+            if (doctor != null && doctorSummaries.stream().noneMatch(d -> d.getId().equals(doctorId))) {
+                // Doctor is not in the active list, add it
+                Random random = new Random(42);
+                String color = COLOR_PALETTE[random.nextInt(COLOR_PALETTE.length)];
+                DoctorSummaryDTO inactiveDoctor = AppointmentMapper.toDoctorSummary(doctor, color);
+                doctorSummaries.add(inactiveDoctor);
+                System.out.println("Added inactive doctor for editing: " + doctor.getFirstName() + " " + doctor.getLastName() + " - " + (doctor.getSpecialty() != null ? doctor.getSpecialty().getName() : "No specialty"));
+            }
+        }
+
+        String editId = req.getParameter("edit");
+        boolean isEditMode = editId != null && !editId.trim().isEmpty();
+        
         List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> allAvailabilitiesWithSlots = new ArrayList<>();
         for (DoctorSummaryDTO doctor : doctorSummaries) {
-            List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> doctorAvailabilities = 
-                appointmentService.getAllAvailabilityTimeSlotsForDoctor(doctor.getId());
+            List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> doctorAvailabilities =
+                    appointmentService.getAllAvailabilityTimeSlotsForDoctor(doctor.getId(), isEditMode);
             if (doctorAvailabilities != null && !doctorAvailabilities.isEmpty()) {
                 allAvailabilitiesWithSlots.addAll(doctorAvailabilities);
             }
         }
+        
+        // In edit mode, if we have appointments but no availabilities, generate default time slots
+        if (isEditMode && !appointmentDTOs.isEmpty()) {
+            for (AppointmentResponseDTO appointment : appointmentDTOs) {
+                if (appointment.getDoctorId() != null) {
+                    // Check if we already have availabilities for this doctor
+                    boolean hasAvailabilities = allAvailabilitiesWithSlots.stream()
+                            .anyMatch(avail -> avail.getDoctorId().equals(appointment.getDoctorId()));
+                    
+                    if (!hasAvailabilities) {
+                        // Generate default time slots for this doctor on the appointment date
+                        org.example.clinique.dto.AvailabilityTimeSlotsDTO defaultAvailability = 
+                                generateDefaultAvailabilityForEdit(appointment);
+                        if (defaultAvailability != null) {
+                            allAvailabilitiesWithSlots.add(defaultAvailability);
+                            System.out.println("Generated default availability for doctor " + appointment.getDoctorId() + " on date " + appointment.getStart());
+                        }
+                    }
+                }
+            }
+        }
 
+        System.out.println("Total doctors available: " + doctorSummaries.size());
+        System.out.println("Doctors specialties: " + doctorSummaries.stream().map(d -> d.getSpecialty()).collect(java.util.stream.Collectors.toList()));
+        
         req.setAttribute("doctorSummaries", doctorSummaries);
         req.setAttribute("availabilityDTOs", availabilityDTOs);
         req.setAttribute("appointmentDTOs", appointmentDTOs);
@@ -418,11 +520,6 @@ public class ReservationServlet extends HttpServlet {
         return builder.toString();
     }
 
-    /**
-     * Build a JSON array of time slots with next availability for each doctor.
-     * Output format: [{"doctorId":2,"doctorName":"Dr Martin","availabilityDate":"2025-10-15",
-     *                  "startTime":"09:00:00","endTime":"17:00:00","timeSlots":["09:00","09:35",...]}, ...]
-     */
     private String buildAvailabilityTimeSlotsJson(List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> availabilitiesWithSlots) {
         StringBuilder builder = new StringBuilder();
         builder.append('[');
@@ -472,5 +569,44 @@ public class ReservationServlet extends HttpServlet {
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n")
                 .replace("\r", "\\r");
+    }
+    
+    private org.example.clinique.dto.AvailabilityTimeSlotsDTO generateDefaultAvailabilityForEdit(AppointmentResponseDTO appointment) {
+        if (appointment.getStart() == null || appointment.getDoctorId() == null) {
+            return null;
+        }
+        
+        try {
+            // Parse the appointment start time
+            java.time.LocalDateTime startDateTime = java.time.LocalDateTime.parse(appointment.getStart());
+            java.time.LocalDate appointmentDate = startDateTime.toLocalDate();
+            
+            // Generate time slots from 8:00 to 18:00 (typical working hours)
+            java.time.LocalTime startTime = java.time.LocalTime.of(8, 0);
+            java.time.LocalTime endTime = java.time.LocalTime.of(18, 0);
+            
+            java.util.List<String> timeSlots = new java.util.ArrayList<>();
+            java.time.LocalTime currentTime = startTime;
+            
+            while (currentTime.isBefore(endTime)) {
+                timeSlots.add(currentTime.toString().substring(0, 5)); // Format HH:MM
+                currentTime = currentTime.plusMinutes(30); // 30-minute slots
+            }
+            
+            // Get doctor name from appointment
+            String doctorName = appointment.getDoctorName() != null ? appointment.getDoctorName() : "Médecin";
+            
+            return new org.example.clinique.dto.AvailabilityTimeSlotsDTO(
+                appointment.getDoctorId(),
+                doctorName,
+                appointmentDate.toString(),
+                startTime.toString(),
+                endTime.toString(),
+                timeSlots
+            );
+        } catch (Exception e) {
+            System.err.println("Error generating default availability: " + e.getMessage());
+            return null;
+        }
     }
 }

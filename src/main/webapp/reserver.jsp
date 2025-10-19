@@ -17,9 +17,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Réserver un rendez-vous - Clinique Digitale</title>
   <link rel="stylesheet" href="css/reservation.css">
+  <link rel="stylesheet" href="css/toast-animations.css">
 </head>
 <body>
   <div class="container">
+
+    <!-- Messages -->
+    <c:if test="${not empty successMessage}">
+      <div class="alert alert-success">${successMessage}</div>
+    </c:if>
+    <c:if test="${not empty errorMessage}">
+      <div class="alert alert-danger">${errorMessage}</div>
+    </c:if>
+
     <!-- Bouton de retour au dashboard -->
     <div class="back-to-dashboard">
       <a href="${pageContext.request.contextPath}/dashboard-patient.jsp" class="btn-back">
@@ -57,17 +67,17 @@
         <h2>Choisissez une spécialité</h2>
         <p class="subtitle">Sélectionnez la spécialité médicale dont vous avez besoin</p>
         <div class="specialty-grid" id="specialtyGrid">
-           Specialties will be loaded here 
+           Specialties will be loaded here
         </div>
       </div>
     </div>
- 
+
     <div class="step-content" id="step2">
       <div class="card">
         <h2>Votre médecin</h2>
         <p class="subtitle">Un médecin disponible a été sélectionné pour vous</p>
         <div class="doctor-selected" id="selectedDoctor">
-           Selected doctor will appear here 
+           Selected doctor will appear here
         </div>
         <div class="button-group">
           <button class="btn btn-secondary" onclick="previousStep()">Retour</button>
@@ -80,18 +90,18 @@
       <div class="card">
         <h2>Choisissez votre créneau</h2>
         <p class="subtitle">Sélectionnez une date et une heure disponibles (minimum 2h à l'avance)</p>
-        
+
         <div class="calendar-container">
           <div class="calendar-header">
             <button class="btn-icon" onclick="previousWeek()">‹</button>
             <h3 id="currentWeek"></h3>
             <button class="btn-icon" onclick="nextWeek()">›</button>
           </div>
-          
+
           <div class="calendar-grid" id="calendarGrid">
-             Calendar will be generated here 
+             Calendar will be generated here
           </div>
-          
+
           <div class="time-slots" id="timeSlots">
             <p class="placeholder">Sélectionnez une date pour voir les créneaux disponibles</p>
           </div>
@@ -109,7 +119,7 @@
         <div class="success-icon">✓</div>
         <h2>Récapitulatif de votre rendez-vous</h2>
         <div class="confirmation-details" id="confirmationDetails">
-           Confirmation details will appear here 
+           Confirmation details will appear here
         </div>
         <form method="post" action="${pageContext.request.contextPath}/reserver" id="finalForm">
           <input type="hidden" name="doctorId" id="finalDoctorId">
@@ -117,7 +127,7 @@
           <input type="hidden" name="startTime" id="finalStartTime">
           <input type="hidden" name="duration" value="30">
           <input type="hidden" name="appointmentType" value="CONSULTATION">
-          
+
           <div class="form-group">
             <label for="notes">Message au médecin (optionnel)</label>
             <textarea id="notes" name="notes" rows="3" placeholder="Précisez le motif de votre consultation..."></textarea>
@@ -140,7 +150,7 @@
       <h3>Conflit de rendez-vous</h3>
       <p class="conflict-message">${conflictMessage}</p>
       <p class="conflict-question">Souhaitez-vous annuler l'ancien rendez-vous et le remplacer par celui-ci, ou conserver l'ancien ?</p>
-      
+
       <form method="post" action="${pageContext.request.contextPath}/reserver" class="conflict-form">
         <input type="hidden" name="doctorId" value="${formDoctorId}">
         <input type="hidden" name="appointmentDate" value="${formDate}">
@@ -148,7 +158,10 @@
         <input type="hidden" name="duration" value="${formDuration}">
         <input type="hidden" name="appointmentType" value="${formType}">
         <input type="hidden" name="oldAppointmentId" value="${oldAppointmentId}">
-        
+        <c:if test="${not empty editAppointmentId}">
+          <input type="hidden" name="editAppointmentId" value="${editAppointmentId}">
+        </c:if>
+
         <div class="modal-buttons">
           <button type="submit" name="replaceOld" value="confirm" class="btn btn-warning">
             Remplacer l'ancien
@@ -162,6 +175,7 @@
   </div>
   </c:if>
 
+  <!-- Données JSON pour le front -->
   <script id="doctorsData" type="application/json">
     ${doctorsJson}
   </script>
@@ -174,9 +188,6 @@
   <script id="nextAvailabilitiesData" type="application/json">
     ${nextAvailabilitiesJson}
   </script>
-  <script id="availabilityTimeSlotsData" type="application/json">
-    ${availabilityTimeSlotsJson}
-  </script>
 
   <script src="js/reservation.js"></script>
   <script>
@@ -185,7 +196,7 @@
       if (modal) {
         modal.style.display = 'none';
       }
-      // Redirect to clear form state
+      // Reset la page pour effacer l'état du formulaire
       window.location.href = '${pageContext.request.contextPath}/reserver';
     }
   </script>

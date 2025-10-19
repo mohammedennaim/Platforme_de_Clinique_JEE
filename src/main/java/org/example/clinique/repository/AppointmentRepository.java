@@ -26,7 +26,6 @@ public class AppointmentRepository {
     }
 
     public List<Appointment> getAppointmentsForDate(Long doctorId, LocalDateTime date) {
-
         TypedQuery<Appointment> query = em.createQuery(
                 "SELECT a FROM Appointment a " +
                         "WHERE a.doctor.id = :doctorId " +
@@ -67,20 +66,44 @@ public class AppointmentRepository {
         Long count = em.createQuery(
                         "SELECT COUNT(a) FROM Appointment a " +
                                 "WHERE a.doctor.id = :doctorId " +
+                                "AND a.status != :cancelled " +
                                 "AND a.startDatetime < :end " +
                                 "AND a.endDatetime > :start",
                         Long.class)
                 .setParameter("doctorId", doctorId)
+                .setParameter("cancelled", AppointmentStatus.CANCELED)
                 .setParameter("start", start)
                 .setParameter("end", end)
                 .getSingleResult();
         return count != null && count > 0;
     }
 
+    public boolean existsOverlappingAppointmentExcluding(Long doctorId, LocalDateTime start, LocalDateTime end, Long excludeAppointmentId) {
+        Long count = em.createQuery(
+                        "SELECT COUNT(a) FROM Appointment a " +
+                                "WHERE a.doctor.id = :doctorId " +
+                                "AND a.status != :cancelled " +
+                                "AND a.id != :excludeId " +
+                                "AND a.startDatetime < :end " +
+                                "AND a.endDatetime > :start",
+                        Long.class)
+                .setParameter("doctorId", doctorId)
+                .setParameter("cancelled", AppointmentStatus.CANCELED)
+                .setParameter("start", start)
+                .setParameter("end", end)
+                .setParameter("excludeId", excludeAppointmentId)
+                .getSingleResult();
+        return count != null && count > 0;
+    }
+
+    public Appointment findById(Long id) {
+        return em.find(Appointment.class, id);
+    }
+
     public List<Appointment> findByDoctorAndDate(Long doctorId, java.time.LocalDate date) {
         java.time.LocalDateTime startOfDay = date.atStartOfDay();
         java.time.LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
-        
+
         TypedQuery<Appointment> query = em.createQuery(
                 "SELECT a FROM Appointment a " +
                         "WHERE a.doctor.id = :doctorId " +
@@ -102,13 +125,13 @@ public class AppointmentRepository {
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
 
         Long count = em.createQuery(
-                "SELECT COUNT(a) FROM Appointment a " +
-                        "WHERE a.patient.id = :patientId " +
-                        "AND a.status != :cancelled " +
-                        "AND a.startDatetime >= :startOfDay " +
-                        "AND a.startDatetime < :endOfDay",
-                Long.class
-        )
+                        "SELECT COUNT(a) FROM Appointment a " +
+                                "WHERE a.patient.id = :patientId " +
+                                "AND a.status != :cancelled " +
+                                "AND a.startDatetime >= :startOfDay " +
+                                "AND a.startDatetime < :endOfDay",
+                        Long.class
+                )
                 .setParameter("patientId", patientId)
                 .setParameter("cancelled", AppointmentStatus.CANCELED)
                 .setParameter("startOfDay", startOfDay)
@@ -130,6 +153,33 @@ public class AppointmentRepository {
         );
         query.setParameter("patientId", patientId);
         query.setParameter("cancelled", AppointmentStatus.CANCELED);
+        query.setParameter("start", start);
+        query.setParameter("end", end);
+        return query.getResultList();
+    }
+
+    // NEW: conflicts for patient excluding a given appointment (for edit mode)
+    public List<Appointment> findConflictingAppointmentsForPatientExcluding(
+            Long patientId,
+            LocalDateTime start,
+            LocalDateTime end,
+            Long excludeAppointmentId
+    ) {
+        TypedQuery<Appointment> query = em.createQuery(
+                "SELECT a FROM Appointment a " +
+                        "JOIN FETCH a.doctor d " +
+                        "JOIN FETCH d.specialty " +
+                        "WHERE a.patient.id = :patientId " +
+                        "AND a.status != :cancelled " +
+                        "AND a.id <> :excludeId " +
+                        "AND a.startDatetime < :end " +
+                        "AND a.endDatetime > :start " +
+                        "ORDER BY a.startDatetime ASC",
+                Appointment.class
+        );
+        query.setParameter("patientId", patientId);
+        query.setParameter("cancelled", AppointmentStatus.CANCELED);
+        query.setParameter("excludeId", excludeAppointmentId);
         query.setParameter("start", start);
         query.setParameter("end", end);
         return query.getResultList();

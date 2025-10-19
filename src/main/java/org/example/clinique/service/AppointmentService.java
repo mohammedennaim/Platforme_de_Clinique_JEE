@@ -36,10 +36,10 @@ public class AppointmentService {
     }
 
     public Appointment createAppointment(Long patientId,
-            Long doctorId,
-            LocalDateTime start,
-            LocalDateTime end,
-            AppointmentType type) {
+                                         Long doctorId,
+                                         LocalDateTime start,
+                                         LocalDateTime end,
+                                         AppointmentType type) {
         if (patientId == null) {
             throw new IllegalArgumentException("Patient introuvable");
         }
@@ -102,59 +102,72 @@ public class AppointmentService {
         return doctorRepository.findAll();
     }
 
+    public Doctor getDoctorById(Long doctorId) {
+        return doctorRepository.findById(doctorId);
+    }
+
+    public Doctor getDoctorByIdIncludingInactive(Long doctorId) {
+        return doctorRepository.findByIdIncludingInactive(doctorId);
+    }
+
     public AvailabilityTimeSlotsDTO getNextAvailabilityForDoctor(Long doctorId) {
         if (doctorId == null) {
             return null;
         }
 
         Optional<Availability> availabilityOpt = availabilityRepository.findAvailabilityByDoctor(doctorId);
-        
+
         if (availabilityOpt.isPresent()) {
             Availability availability = availabilityOpt.get();
             List<Appointment> appointments = appointmentRepository.findByDoctorAndDate(
-                doctorId, 
-                availability.getAvailabilityDate()
+                    doctorId,
+                    availability.getAvailabilityDate()
             );
             return AppointmentMapper.toAvailabilityTimeSlotsDTO(
-                availability, 
-                appointments
+                    availability,
+                    appointments
             );
         }
-        
+
         return null;
     }
-    
+
     public List<AvailabilityTimeSlotsDTO> getAllAvailabilityTimeSlotsForDoctor(Long doctorId) {
+        return getAllAvailabilityTimeSlotsForDoctor(doctorId, false);
+    }
+    
+    public List<AvailabilityTimeSlotsDTO> getAllAvailabilityTimeSlotsForDoctor(Long doctorId, boolean isEditMode) {
         if (doctorId == null) {
             return List.of();
         }
 
-        List<Availability> availabilities = availabilityRepository.findAvailabilitiesByDoctor(doctorId);        
+        List<Availability> availabilities = availabilityRepository.findAvailabilitiesByDoctor(doctorId);
         List<AvailabilityTimeSlotsDTO> result = new java.util.ArrayList<>();
-        
+
         for (Availability availability : availabilities) {
-            if (availability.getAvailabilityDate() == null || 
-                availability.getStartTime() == null || 
-                availability.getEndTime() == null) {
+            if (availability.getAvailabilityDate() == null ||
+                    availability.getStartTime() == null ||
+                    availability.getEndTime() == null) {
                 continue;
             }
-            
+
             List<Appointment> appointments = appointmentRepository.findByDoctorAndDate(
-                doctorId, 
-                availability.getAvailabilityDate()
+                    doctorId,
+                    availability.getAvailabilityDate()
             );
-            
-            AvailabilityTimeSlotsDTO dto = 
-                AppointmentMapper.toAvailabilityTimeSlotsDTO(
-                    availability, 
-                    appointments
-                );
-            
+
+            AvailabilityTimeSlotsDTO dto =
+                    AppointmentMapper.toAvailabilityTimeSlotsDTO(
+                            availability,
+                            appointments,
+                            isEditMode
+                    );
+
             if (dto != null) {
                 result.add(dto);
             }
         }
-        
+
         return result;
     }
 
@@ -170,17 +183,83 @@ public class AppointmentService {
     }
 
     /**
+     * NEW: conflicts for patient excluding a given appointment (for edit)
+     */
+    public List<Appointment> findConflictingAppointmentsExcluding(Long patientId, LocalDateTime start, LocalDateTime end, Long excludeAppointmentId) {
+        return appointmentRepository.findConflictingAppointmentsForPatientExcluding(patientId, start, end, excludeAppointmentId);
+    }
+
+    /**
+     * Update an existing appointment
+     */
+    public Appointment updateAppointment(Long appointmentId, Long patientId, Long doctorId,
+                                         LocalDateTime start, LocalDateTime end, AppointmentType type) {
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+
+            // Find existing appointment
+            Appointment existingAppointment = appointmentRepository.findById(appointmentId);
+            if (existingAppointment == null) {
+                throw new IllegalArgumentException("Rendez-vous introuvable");
+            }
+
+            // Verify patient ownership
+            if (!existingAppointment.getPatient().getId().equals(patientId)) {
+                throw new IllegalArgumentException("Vous ne pouvez modifier que vos propres rendez-vous");
+            }
+
+            // Check if appointment can be modified (not in the past, not completed)
+            if (existingAppointment.getStartDatetime().isBefore(LocalDateTime.now())) {
+                throw new IllegalArgumentException("Impossible de modifier un rendez-vous passé");
+            }
+
+            if (existingAppointment.getStatus() == AppointmentStatus.DONE) {
+                throw new IllegalArgumentException("Impossible de modifier un rendez-vous terminé");
+            }
+
+            // Validate new doctor
+            Doctor doctor = doctorRepository.findById(doctorId);
+            if (doctor == null) {
+                throw new IllegalArgumentException("Médecin introuvable");
+            }
+
+            // Check for overlapping appointments (excluding current appointment)
+            if (appointmentRepository.existsOverlappingAppointmentExcluding(doctorId, start, end, appointmentId)) {
+                throw new IllegalStateException("Ce créneau est déjà réservé");
+            }
+
+            // Update appointment
+            existingAppointment.setDoctor(doctor);
+            existingAppointment.setStartDatetime(start);
+            existingAppointment.setEndDatetime(end);
+            existingAppointment.setAppointmentType(type != null ? type : AppointmentType.CONSULTATION);
+            existingAppointment.setStatus(AppointmentStatus.PLANNED);
+
+            appointmentRepository.save(existingAppointment);
+
+            tx.commit();
+            return existingAppointment;
+        } catch (RuntimeException e) {
+            if (tx.isActive()) {
+                tx.rollback();
+            }
+            throw e;
+        }
+    }
+
+    /**
      * Cancel an existing appointment and create a new one
      */
-    public Appointment replaceAppointment(Long oldAppointmentId, Long patientId, Long doctorId, 
+    public Appointment replaceAppointment(Long oldAppointmentId, Long patientId, Long doctorId,
                                           LocalDateTime start, LocalDateTime end, AppointmentType type) {
         EntityTransaction tx = em.getTransaction();
         try {
             tx.begin();
-            
+
             // Cancel old appointment
             appointmentRepository.cancelAppointment(oldAppointmentId);
-            
+
             // Create new appointment (without transaction since we're already in one)
             Doctor doctor = doctorRepository.findById(doctorId);
             if (doctor == null) {
@@ -206,9 +285,36 @@ public class AppointmentService {
             appointment.setCreatedAt(LocalDateTime.now());
 
             appointmentRepository.save(appointment);
-            
+
             tx.commit();
             return appointment;
+        } catch (RuntimeException e) {
+            if (tx.isActive()) {
+                tx.rollback();
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * NEW: Cancel appointment transactionally with ownership checks
+     */
+    public void cancelAppointment(Long appointmentId, Long patientId) {
+        EntityTransaction tx = em.getTransaction();
+        try {
+            tx.begin();
+            Appointment appt = appointmentRepository.findById(appointmentId);
+            if (appt == null) {
+                throw new IllegalArgumentException("Rendez-vous introuvable");
+            }
+            if (!appt.getPatient().getId().equals(patientId)) {
+                throw new IllegalArgumentException("Vous ne pouvez annuler que vos propres rendez-vous");
+            }
+            if (appt.getStatus() == AppointmentStatus.DONE) {
+                throw new IllegalArgumentException("Impossible d'annuler un rendez-vous terminé");
+            }
+            appointmentRepository.cancelAppointment(appointmentId);
+            tx.commit();
         } catch (RuntimeException e) {
             if (tx.isActive()) {
                 tx.rollback();
