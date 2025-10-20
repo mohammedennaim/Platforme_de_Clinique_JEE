@@ -373,30 +373,47 @@ public class ReservationServlet extends HttpServlet {
         boolean isEditMode = editId != null && !editId.trim().isEmpty();
         
         List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> allAvailabilitiesWithSlots = new ArrayList<>();
+        
+        // First, collect all existing availabilities for all doctors
         for (DoctorSummaryDTO doctor : doctorSummaries) {
             List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> doctorAvailabilities =
                     appointmentService.getAllAvailabilityTimeSlotsForDoctor(doctor.getId(), isEditMode);
             if (doctorAvailabilities != null && !doctorAvailabilities.isEmpty()) {
                 allAvailabilitiesWithSlots.addAll(doctorAvailabilities);
+                System.out.println("Found " + doctorAvailabilities.size() + " availabilities for doctor " + doctor.getId());
+            } else {
+                System.out.println("No availabilities found for doctor " + doctor.getId());
             }
         }
         
-        // In edit mode, if we have appointments but no availabilities, generate default time slots
+        System.out.println("Total existing availabilities collected: " + allAvailabilitiesWithSlots.size());
+        
+        // In edit mode, ensure we have proper availabilities for appointment dates
         if (isEditMode && !appointmentDTOs.isEmpty()) {
+            System.out.println("Edit mode: Processing " + appointmentDTOs.size() + " appointments");
             for (AppointmentResponseDTO appointment : appointmentDTOs) {
                 if (appointment.getDoctorId() != null) {
-                    // Check if we already have availabilities for this doctor
-                    boolean hasAvailabilities = allAvailabilitiesWithSlots.stream()
-                            .anyMatch(avail -> avail.getDoctorId().equals(appointment.getDoctorId()));
+                    System.out.println("Processing appointment " + appointment.getId() + " with doctor " + appointment.getDoctorId());
                     
-                    if (!hasAvailabilities) {
-                        // Generate default time slots for this doctor on the appointment date
-                        org.example.clinique.dto.AvailabilityTimeSlotsDTO defaultAvailability = 
-                                generateDefaultAvailabilityForEdit(appointment);
-                        if (defaultAvailability != null) {
-                            allAvailabilitiesWithSlots.add(defaultAvailability);
-                            System.out.println("Generated default availability for doctor " + appointment.getDoctorId() + " on date " + appointment.getStart());
-                        }
+                    // Extract appointment date
+                    String appointmentDate = appointment.getStart().substring(0, 10); // Extract date part
+                    System.out.println("Appointment date: " + appointmentDate);
+                    
+                    // ALWAYS generate availability for the appointment date in edit mode
+                    // This ensures the user can always see and select time slots
+                    org.example.clinique.dto.AvailabilityTimeSlotsDTO dateSpecificAvailability = 
+                            generateDefaultAvailabilityForEdit(appointment);
+                    if (dateSpecificAvailability != null) {
+                        // Remove any existing availability for this doctor/date combination
+                        allAvailabilitiesWithSlots.removeIf(avail -> 
+                            avail.getDoctorId().equals(appointment.getDoctorId()) 
+                            && avail.getAvailabilityDate().equals(appointmentDate));
+                        
+                        // Add the new availability
+                        allAvailabilitiesWithSlots.add(dateSpecificAvailability);
+                        System.out.println("Generated/Updated availability for doctor " + appointment.getDoctorId() + " on date " + appointmentDate);
+                    } else {
+                        System.out.println("Failed to generate availability for doctor " + appointment.getDoctorId());
                     }
                 }
             }
@@ -404,6 +421,14 @@ public class ReservationServlet extends HttpServlet {
 
         System.out.println("Total doctors available: " + doctorSummaries.size());
         System.out.println("Doctors specialties: " + doctorSummaries.stream().map(d -> d.getSpecialty()).collect(java.util.stream.Collectors.toList()));
+        System.out.println("Total availabilities with slots: " + allAvailabilitiesWithSlots.size());
+        System.out.println("Is edit mode: " + isEditMode);
+        if (isEditMode) {
+            System.out.println("Appointments being edited: " + appointmentDTOs.size());
+            for (AppointmentResponseDTO apt : appointmentDTOs) {
+                System.out.println("  - Appointment " + apt.getId() + " with doctor " + apt.getDoctorId() + " on " + apt.getStart());
+            }
+        }
         
         req.setAttribute("doctorSummaries", doctorSummaries);
         req.setAttribute("availabilityDTOs", availabilityDTOs);
@@ -521,12 +546,18 @@ public class ReservationServlet extends HttpServlet {
     }
 
     private String buildAvailabilityTimeSlotsJson(List<org.example.clinique.dto.AvailabilityTimeSlotsDTO> availabilitiesWithSlots) {
+        System.out.println("buildAvailabilityTimeSlotsJson called with " + availabilitiesWithSlots.size() + " availabilities");
+        
         StringBuilder builder = new StringBuilder();
         builder.append('[');
         boolean first = true;
 
         for (org.example.clinique.dto.AvailabilityTimeSlotsDTO dto : availabilitiesWithSlots) {
             if (dto == null) continue;
+
+            System.out.println("Processing availability DTO: doctorId=" + dto.getDoctorId() + 
+                             ", date=" + dto.getAvailabilityDate() + 
+                             ", slots=" + (dto.getTimeSlots() != null ? dto.getTimeSlots().size() : 0));
 
             if (!first) builder.append(',');
             builder.append('{');
@@ -557,7 +588,9 @@ public class ReservationServlet extends HttpServlet {
         }
 
         builder.append(']');
-        return builder.toString();
+        String result = builder.toString();
+        System.out.println("Generated JSON: " + result);
+        return result;
     }
 
     private String escapeJson(String value) {
@@ -572,7 +605,12 @@ public class ReservationServlet extends HttpServlet {
     }
     
     private org.example.clinique.dto.AvailabilityTimeSlotsDTO generateDefaultAvailabilityForEdit(AppointmentResponseDTO appointment) {
+        System.out.println("generateDefaultAvailabilityForEdit called for appointment: " + appointment.getId());
+        System.out.println("Appointment start: " + appointment.getStart());
+        System.out.println("Doctor ID: " + appointment.getDoctorId());
+        
         if (appointment.getStart() == null || appointment.getDoctorId() == null) {
+            System.out.println("Missing required data - start: " + appointment.getStart() + ", doctorId: " + appointment.getDoctorId());
             return null;
         }
         
@@ -580,23 +618,57 @@ public class ReservationServlet extends HttpServlet {
             // Parse the appointment start time
             java.time.LocalDateTime startDateTime = java.time.LocalDateTime.parse(appointment.getStart());
             java.time.LocalDate appointmentDate = startDateTime.toLocalDate();
+            java.time.LocalTime appointmentTime = startDateTime.toLocalTime();
             
-            // Generate time slots from 8:00 to 18:00 (typical working hours)
+            System.out.println("Parsed date: " + appointmentDate + ", time: " + appointmentTime);
+            
+            // Generate comprehensive time slots from 8:00 to 18:00 (typical working hours)
             java.time.LocalTime startTime = java.time.LocalTime.of(8, 0);
             java.time.LocalTime endTime = java.time.LocalTime.of(18, 0);
             
             java.util.List<String> timeSlots = new java.util.ArrayList<>();
             java.time.LocalTime currentTime = startTime;
             
+            // Generate standard 30-minute slots
             while (currentTime.isBefore(endTime)) {
                 timeSlots.add(currentTime.toString().substring(0, 5)); // Format HH:MM
                 currentTime = currentTime.plusMinutes(30); // 30-minute slots
             }
             
+            // Ensure the current appointment time is included in the slots
+            String currentAppointmentTimeStr = appointmentTime.toString().substring(0, 5);
+            if (!timeSlots.contains(currentAppointmentTimeStr)) {
+                timeSlots.add(currentAppointmentTimeStr);
+            }
+            
+            // Add more slots around the current appointment time for better rescheduling options
+            java.time.LocalTime appointmentTimeRounded = java.time.LocalTime.of(
+                appointmentTime.getHour(), 
+                (appointmentTime.getMinute() / 30) * 30
+            );
+            
+            // Add slots before and after the appointment time (±2 hours)
+            for (int i = -4; i <= 4; i++) {
+                java.time.LocalTime additionalTime = appointmentTimeRounded.plusMinutes(i * 30);
+                if (additionalTime.isAfter(startTime.minusMinutes(1)) && 
+                    additionalTime.isBefore(endTime.plusMinutes(1))) {
+                    String additionalTimeStr = additionalTime.toString().substring(0, 5);
+                    if (!timeSlots.contains(additionalTimeStr)) {
+                        timeSlots.add(additionalTimeStr);
+                    }
+                }
+            }
+            
+            // Sort all slots
+            timeSlots.sort(java.util.Comparator.naturalOrder());
+            
+            System.out.println("Generated " + timeSlots.size() + " time slots");
+            System.out.println("Time slots: " + timeSlots);
+            
             // Get doctor name from appointment
             String doctorName = appointment.getDoctorName() != null ? appointment.getDoctorName() : "Médecin";
             
-            return new org.example.clinique.dto.AvailabilityTimeSlotsDTO(
+            org.example.clinique.dto.AvailabilityTimeSlotsDTO result = new org.example.clinique.dto.AvailabilityTimeSlotsDTO(
                 appointment.getDoctorId(),
                 doctorName,
                 appointmentDate.toString(),
@@ -604,8 +676,15 @@ public class ReservationServlet extends HttpServlet {
                 endTime.toString(),
                 timeSlots
             );
+            
+            System.out.println("Generated availability DTO: doctorId=" + result.getDoctorId() + 
+                             ", date=" + result.getAvailabilityDate() + 
+                             ", slots=" + result.getTimeSlots().size());
+            
+            return result;
         } catch (Exception e) {
             System.err.println("Error generating default availability: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }

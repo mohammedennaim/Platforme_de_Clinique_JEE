@@ -129,11 +129,16 @@ public final class AppointmentMapper {
             availability.getEndTime()
         );
         
-        // In edit mode, include all time slots
+        // In edit mode, include all time slots but still filter out past slots
         // In creation mode, filter out time slots that are already booked
         List<String> availableTimeSlots;
         if (isEditMode) {
-            availableTimeSlots = allTimeSlots; // Include all slots for editing
+            // In edit mode, show all future slots (don't filter by existing appointments)
+            availableTimeSlots = filterAvailableSlots(
+                allTimeSlots,
+                new java.util.ArrayList<>(), // Empty list to not filter by existing appointments
+                availability.getAvailabilityDate()
+            );
         } else {
             availableTimeSlots = filterAvailableSlots(
                 allTimeSlots,
@@ -149,10 +154,15 @@ public final class AppointmentMapper {
         System.out.println("End time: " + availability.getEndTime());
         System.out.println("Is edit mode: " + isEditMode);
         
+        // For recurring availabilities (date is null), we need to set a default date
+        String availabilityDateStr = availability.getAvailabilityDate() != null ? 
+            availability.getAvailabilityDate().toString() : 
+            java.time.LocalDate.now().toString(); // Use today's date for recurring availabilities
+        
         return new AvailabilityTimeSlotsDTO(
             doctor != null ? doctor.getId() : null,
             doctorName.trim(),
-            availability.getAvailabilityDate() != null ? availability.getAvailabilityDate().toString() : null,
+            availabilityDateStr,
             availability.getStartTime() != null ? availability.getStartTime().toString() : null,
             availability.getEndTime() != null ? availability.getEndTime().toString() : null,
             availableTimeSlots

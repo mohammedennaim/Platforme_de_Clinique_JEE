@@ -16,6 +16,15 @@ let nextAvailabilitiesWithSlots = [] // Contient doctorId, doctorName, availabil
 const APPOINTMENT_DURATION = 30
 const BREAK_DURATION = 5
 
+const shortDayNames = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"]
+
+// Garder la date/heure originales du RDV en édition
+let originalEditDateISO = null
+let originalEditTime = null
+
+// Flag: fallback d'affichage du créneau actuel uniquement
+let fallbackCurrentSlotOnly = false
+
 // ========================================
 // Specialty Icons Mapping
 // ========================================
@@ -42,7 +51,58 @@ const specialtyIcons = {
   Néphrologie: "🫘",
 }
 
-const shortDayNames = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"]
+// ========================================
+// Helpers (Edit Mode)
+// ========================================
+function getEditId() {
+  // 1) URL param ?edit=ID
+  const urlParams = new URLSearchParams(window.location.search)
+  const editFromUrl = urlParams.get("edit")
+  if (editFromUrl) return String(editFromUrl)
+
+  // 2) Hidden input
+  const hidden = document.getElementById("editAppointmentId")
+  if (hidden && hidden.value) return String(hidden.value)
+
+  // 3) SessionStorage
+  try {
+    const stored = sessionStorage.getItem("editingAppointment")
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      if (parsed && parsed.id) return String(parsed.id)
+    }
+  } catch (e) {}
+  return null
+}
+
+function hasAvailabilityForDate(doctorId, dateISO) {
+  return nextAvailabilitiesWithSlots.some(
+    av =>
+      String(av.doctorId) === String(doctorId) &&
+      av.availabilityDate === dateISO &&
+      av.timeSlots &&
+      av.timeSlots.length > 0
+  )
+}
+
+function getNextAvailabilityDateForDoctor(doctorId, fromISO) {
+  const todayISO = new Date().toISOString().substring(0, 10)
+  const thresholdISO = fromISO || todayISO
+  const candidates = nextAvailabilitiesWithSlots
+    .filter(av => String(av.doctorId) === String(doctorId) && av.timeSlots && av.timeSlots.length > 0)
+    .map(av => av.availabilityDate)
+    .filter(d => d >= thresholdISO)
+    .sort()
+  return candidates.length > 0 ? candidates[0] : null
+}
+
+// Bouton confirmer: centraliser l'activation
+function updateConfirmBtn() {
+  const btn = document.getElementById("confirmTimeBtn")
+  if (!btn) return
+  // Actif si on a une date et une heure choisies
+  btn.disabled = !(selectedDate && selectedTime)
+}
 
 // ========================================
 // Initialize
@@ -57,31 +117,27 @@ document.addEventListener("DOMContentLoaded", () => {
   const editId = urlParams.get("edit")
 
   if (editId) {
-    // Load appointment data from sessionStorage
     const editData = sessionStorage.getItem("editingAppointment")
     if (editData) {
       const appointment = JSON.parse(editData)
       setTimeout(() => {
         loadEditMode(appointment)
-      }, 100)
+      }, 200)
     }
   } else {
-    // Check for URL parameters to pre-select doctor
+    // Pre-select doctor by URL
     const doctorId = urlParams.get("doctorId")
     const specialty = urlParams.get("specialty")
-
     if (doctorId && specialty) {
-      // Auto-select specialty and doctor from URL parameters
       setTimeout(() => {
         autoSelectFromUrl(specialty, Number.parseInt(doctorId))
       }, 100)
     }
   }
 
-  // Check if we have a success message (appointment was updated)
+  // If updated, reset UI after a delay
   const successMessage = document.querySelector(".success-message, .alert-success")
   if (successMessage && successMessage.textContent.includes("modifié")) {
-    // Appointment was successfully updated, reset form after a delay
     setTimeout(() => {
       resetToCreationMode()
     }, 3000)
@@ -92,10 +148,8 @@ document.addEventListener("DOMContentLoaded", () => {
 // Auto-select Specialty and Doctor from URL
 // ========================================
 function autoSelectFromUrl(specialtyName, doctorId) {
-  // Step 1: Select specialty
   selectedSpecialty = specialtyName
 
-  // Step 2: Select doctor
   const doctor = doctors.find((d) => d.id === doctorId)
   if (!doctor) {
     console.error("Doctor not found:", doctorId)
@@ -116,28 +170,22 @@ function autoSelectFromUrl(specialtyName, doctorId) {
   }
 
   setStep(3)
-
   setTimeout(() => {
     const el = document.getElementById("timeSlots")
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" })
   }, 300)
 }
 
-// Function to reset form to creation mode
+// ========================================
+// Reset Creation Mode
+// ========================================
 function resetToCreationMode() {
-  // Clear edit appointment ID
   const editIdInput = document.getElementById("editAppointmentId")
-  if (editIdInput) {
-    editIdInput.remove()
-  }
+  if (editIdInput) editIdInput.remove()
 
-  // Reset form title
   const formTitle = document.querySelector("#step4 h2")
-  if (formTitle) {
-    formTitle.textContent = "Récapitulatif de votre rendez-vous"
-  }
+  if (formTitle) formTitle.textContent = "Récapitulatif de votre rendez-vous"
 
-  // Reset submit button
   const finalForm = document.getElementById("finalForm")
   if (finalForm) {
     const submitButton = finalForm.querySelector('button[type="submit"]')
@@ -148,16 +196,14 @@ function resetToCreationMode() {
     }
   }
 
-  // Clear session storage
   sessionStorage.removeItem("editingAppointment")
-
-  // Reset selections
   selectedSpecialty = null
   selectedDoctor = null
   selectedDate = null
   selectedTime = null
-
-  // Go back to step 1
+  originalEditDateISO = null
+  originalEditTime = null
+  fallbackCurrentSlotOnly = false
   setStep(1)
 }
 
@@ -170,10 +216,11 @@ function loadData() {
     const availabilityEl = document.getElementById("availabilityData")
     const appointmentsEl = document.getElementById("appointmentsData")
     const nextAvailabilitiesEl = document.getElementById("nextAvailabilitiesData")
-    const availabilityTimeSlotsEl = document.getElementById("availabilityTimeSlotsData")
 
     if (doctorsEl && doctorsEl.textContent.trim()) {
       doctors = JSON.parse(doctorsEl.textContent.trim())
+    } else {
+      console.warn("No doctors data found in DOM")
     }
 
     if (availabilityEl && availabilityEl.textContent.trim()) {
@@ -186,6 +233,8 @@ function loadData() {
 
     if (nextAvailabilitiesEl && nextAvailabilitiesEl.textContent.trim()) {
       nextAvailabilitiesWithSlots = JSON.parse(nextAvailabilitiesEl.textContent.trim())
+    } else {
+      console.warn("No availabilities data found in DOM")
     }
   } catch (error) {
     console.error("Error loading data:", error)
@@ -203,7 +252,12 @@ function renderSpecialties() {
   const container = document.getElementById("specialtyGrid")
   if (!container) return
 
-  const specialties = [...new Set(doctors.map((d) => d.specialty))].sort()
+  const validDoctors = doctors.filter((d) => d && d.specialty && d.specialty.trim() !== "")
+  let specialties = [...new Set(validDoctors.map((d) => d.specialty))].sort()
+
+  if (specialties.length === 0 && selectedSpecialty) {
+    specialties = [selectedSpecialty]
+  }
 
   if (specialties.length === 0) {
     container.innerHTML = '<p class="placeholder">Aucune spécialité disponible</p>'
@@ -211,28 +265,59 @@ function renderSpecialties() {
   }
 
   container.innerHTML = specialties
-    .map(
-      (specialty) => `
-    <div class="specialty-card" onclick="selectSpecialty('${escapeHtml(specialty)}')">
-      <div class="specialty-icon">${specialtyIcons[specialty] || "🏥"}</div>
-      <div class="specialty-name">${escapeHtml(specialty)}</div>
-    </div>
-  `,
-    )
+    .map((specialty) => {
+      const isSelected = selectedSpecialty === specialty
+      const doctorsForSpecialty = doctors.filter(d => d && d.specialty === specialty)
+      const hasDoctors = doctorsForSpecialty.length > 0
+
+      const urlParams = new URLSearchParams(window.location.search)
+      const editId = urlParams.get("edit")
+      const canSelect = hasDoctors || editId || isSelected
+
+      return `
+        <div class="specialty-card ${isSelected ? 'selected' : ''} ${!hasDoctors ? 'no-doctors' : ''}" 
+             onclick="${canSelect ? `selectSpecialty('${escapeHtml(specialty)}')` : ''}">
+          <div class="specialty-icon">${specialtyIcons[specialty] || "🏥"}</div>
+          <div class="specialty-name">${escapeHtml(specialty)}</div>
+          ${!hasDoctors && !editId ? '<div class="specialty-warning">Aucun médecin disponible</div>' : ''}
+        </div>
+      `
+    })
     .join("")
 }
 
 function selectSpecialty(specialty) {
   selectedSpecialty = specialty
 
-  const filteredDoctors = doctors.filter((d) => d.specialty === specialty)
+  const urlParams = new URLSearchParams(window.location.search)
+  const editId = urlParams.get("edit")
+
+  if (editId) {
+    if (selectedDoctor && selectedDoctor.specialty === specialty) {
+      nextStep()
+      return
+    }
+  }
+
+  let filteredDoctors = doctors.filter((d) => d && d.specialty === specialty)
 
   if (filteredDoctors.length === 0) {
-    alert("Aucun médecin disponible pour cette spécialité")
+    filteredDoctors = doctors.filter((d) => d && d.specialty &&
+      d.specialty.toLowerCase().trim() === specialty.toLowerCase().trim())
+  }
+
+  if (filteredDoctors.length === 0) {
+    filteredDoctors = doctors.filter((d) => d && d.specialty &&
+      d.specialty.toLowerCase().includes(specialty.toLowerCase()))
+  }
+
+  if (filteredDoctors.length === 0) {
+    if (!editId) {
+      showToast("Aucun médecin disponible pour cette spécialité. Veuillez choisir une autre spécialité.", "error")
+    }
     return
   }
 
-  // Random selection
   selectedDoctor = filteredDoctors[Math.floor(Math.random() * filteredDoctors.length)]
   nextStep()
 }
@@ -244,17 +329,27 @@ function renderSelectedDoctor() {
   const container = document.getElementById("selectedDoctor")
   if (!container || !selectedDoctor) return
 
-  const initials = getInitials(selectedDoctor.firstName, selectedDoctor.lastName)
+  const initials = selectedDoctor.initials || getInitialsFromFullName(selectedDoctor.fullName || "")
 
   container.innerHTML = `
     <div class="doctor-avatar">${escapeHtml(initials)}</div>
     <div class="doctor-info">
-      <h3>${escapeHtml(selectedDoctor.fullName)}</h3>
-      <p>${escapeHtml(selectedDoctor.specialty)}</p>
+      <h3>${escapeHtml(selectedDoctor.fullName || "")}</h3>
+      <p>${escapeHtml(selectedDoctor.specialty || "")}</p>
     </div>
   `
 }
 
+function getInitialsFromFullName(fullName) {
+  if (!fullName) return ""
+  return fullName
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n.charAt(0).toUpperCase())
+    .join("")
+}
+
+// Backward compatibility if used elsewhere
 function getInitials(firstName, lastName) {
   const first = firstName ? firstName.charAt(0).toUpperCase() : ""
   const last = lastName ? lastName.charAt(0).toUpperCase() : ""
@@ -265,13 +360,29 @@ function getInitials(firstName, lastName) {
 // Step 3: Calendar & Time Slots
 // ========================================
 function initializeCalendar() {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const editId = getEditId()
+  
+  if (editId && selectedDate) {
+    // In edit mode, start with the week containing the appointment date
+    const appointmentDate = new Date(selectedDate)
+    appointmentDate.setHours(0, 0, 0, 0)
+    
+    const dayOfWeek = appointmentDate.getDay()
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    currentWeekStart = new Date(appointmentDate)
+    currentWeekStart.setDate(appointmentDate.getDate() + diff)
+    
+    console.log("Edit mode: Calendar initialized for appointment week starting", currentWeekStart)
+  } else {
+    // In create mode, start with current week
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
-  const dayOfWeek = today.getDay()
-  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-  currentWeekStart = new Date(today)
-  currentWeekStart.setDate(today.getDate() + diff)
+    const dayOfWeek = today.getDay()
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    currentWeekStart = new Date(today)
+    currentWeekStart.setDate(today.getDate() + diff)
+  }
 }
 
 function renderCalendar() {
@@ -289,22 +400,22 @@ function renderCalendar() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
+  const editId = getEditId()
+
   let html = ""
   for (let i = 0; i < 7; i++) {
     const date = new Date(currentWeekStart)
     date.setDate(currentWeekStart.getDate() + i)
 
-    const dayOfWeek = date.getDay()
     const isPast = date < today
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-
-    // Vérifier si le patient a déjà un RDV ce jour-là dans la MÊME spécialité
     const dateISO = formatDateISO(date)
+
+    // Exclude the appointment being edited
     const hasAppointmentInSameSpecialty = selectedDoctor
       ? appointments.some((apt) => {
           if (apt.status === "CANCELED") return false
+          if (editId && String(apt.id) === String(editId)) return false
           const aptDate = apt.start ? apt.start.split("T")[0] : null
-          // Bloquer seulement si c'est la même spécialité que le médecin sélectionné
           return aptDate === dateISO && apt.doctorSpecialty === selectedDoctor.specialty
         })
       : false
@@ -331,13 +442,22 @@ function renderCalendar() {
 }
 
 function selectDate(dateStr) {
-  selectedDate = new Date(dateStr)
-  selectedTime = null
+  const newDate = new Date(dateStr)
+  selectedDate = newDate
+
+  // En mode édition: si on clique sur la même date que le RDV d'origine,
+  // on garde le créneau original sélectionné; sinon on réinitialise.
+  const editId = getEditId()
+  const clickedISO = formatDateISO(newDate)
+  if (editId && originalEditDateISO && clickedISO === originalEditDateISO) {
+    selectedTime = originalEditTime
+  } else {
+    selectedTime = null
+  }
 
   renderCalendar()
   renderTimeSlots()
-
-  document.getElementById("confirmTimeBtn").disabled = true
+  updateConfirmBtn()
 }
 
 function renderTimeSlots() {
@@ -350,83 +470,85 @@ function renderTimeSlots() {
   }
 
   const selectedDateISO = formatDateISO(selectedDate)
+  const editId = getEditId()
 
-  // Check if we're in edit mode
-  const urlParams = new URLSearchParams(window.location.search)
-  const editId = urlParams.get("edit")
-
-  if (editId) {
-    const defaultSlots = generateDefaultTimeSlots()
-    if (defaultSlots.length > 0) {
-      renderTimeSlotsGrid(defaultSlots, container)
-      return
-    }
-  }
-
-  // Vérifier si le patient a déjà un rendez-vous sur cette date dans la MÊME spécialité
+  // Exclude the appointment being edited from same-specialty day blocking
   const hasAppointmentInSameSpecialty = appointments.some((apt) => {
     if (apt.status === "CANCELED") return false
+    if (editId && String(apt.id) === String(editId)) return false
     const aptDate = apt.start ? apt.start.split("T")[0] : null
     return aptDate === selectedDateISO && apt.doctorSpecialty === selectedDoctor.specialty
   })
 
-  // Si le patient a déjà un RDV dans la même spécialité, afficher un message
   if (hasAppointmentInSameSpecialty) {
     container.innerHTML = `<p class="placeholder">Vous avez déjà un rendez-vous en ${selectedDoctor.specialty} prévu ce jour-là</p>`
+    fallbackCurrentSlotOnly = false
+    updateConfirmBtn()
     return
   }
 
-  // Chercher les time slots depuis le backend pour ce médecin et cette date
+  // Fetch availability for this doctor/date
   const availabilityData = nextAvailabilitiesWithSlots.find((avail) => {
     return String(avail.doctorId) === String(selectedDoctor.id) && avail.availabilityDate === selectedDateISO
   })
+  
+  console.log("Looking for availability for doctor", selectedDoctor.id, "on date", selectedDateISO)
+  console.log("Available data:", availabilityData)
+  console.log("All availabilities:", nextAvailabilitiesWithSlots)
+  
+  // Debug: Log all availabilities for this doctor
+  const doctorAvailabilities = nextAvailabilitiesWithSlots.filter(avail => 
+    String(avail.doctorId) === String(selectedDoctor.id)
+  )
+  console.log("Doctor availabilities:", doctorAvailabilities)
 
+  // If no availability that day:
   if (!availabilityData || !availabilityData.timeSlots || availabilityData.timeSlots.length === 0) {
+    // In edit mode, show current slot so user peut confirmer ou changer de date
+    if (editId && selectedTime) {
+      fallbackCurrentSlotOnly = true
+      renderTimeSlotsGrid([selectedTime], container)
+      // Activer le bouton Confirmer pour laisser l'utilisateur garder ce créneau
+      updateConfirmBtn()
+      container.insertAdjacentHTML(
+        'beforeend',
+        '<p class="hint">Ceci est le créneau de votre rendez-vous actuel. Pour reprogrammer, choisissez une date qui a des disponibilités.</p>'
+      )
+      return
+    }
+    // In create mode or edit mode without selected time
     container.innerHTML = '<p class="placeholder">Aucun créneau disponible pour cette date</p>'
+    fallbackCurrentSlotOnly = false
+    updateConfirmBtn()
     return
   }
 
-  // Filtrer les créneaux déjà réservés
-  const availableSlots = availabilityData.timeSlots.filter((timeSlot) => {
-    return !isTimeSlotBooked(selectedDate, timeSlot)
-  })
+  // Compute available slots
+  let availableSlots = availabilityData.timeSlots
+  if (editId) {
+    // In edit: ensure current selectedTime is visible even if not part of availability list
+    if (selectedTime && !availableSlots.includes(selectedTime)) {
+      availableSlots = [...availableSlots, selectedTime].sort()
+      console.log("Added current appointment time to available slots:", selectedTime)
+    }
+    // In edit mode, don't filter out booked slots - show all available slots
+    // The backend already handles this by not filtering by existing appointments
+    console.log("Edit mode: Showing all available slots:", availableSlots)
+  } else {
+    // In create: filter out booked ones
+    availableSlots = availabilityData.timeSlots.filter((timeSlot) => !isTimeSlotBooked(selectedDate, timeSlot))
+  }
 
   if (availableSlots.length === 0) {
     container.innerHTML = '<p class="placeholder">Tous les créneaux sont réservés pour cette date</p>'
+    fallbackCurrentSlotOnly = false
+    updateConfirmBtn()
     return
   }
 
+  fallbackCurrentSlotOnly = false
   renderTimeSlotsGrid(availableSlots, container)
-}
-
-function generateDefaultTimeSlots() {
-  const slots = []
-  for (let hour = 8; hour < 18; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      const timeString = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`
-      slots.push(timeString)
-    }
-  }
-  return slots
-}
-
-function renderTimeSlotsGrid(timeSlots, container) {
-  container.innerHTML = `
-    <div class="time-slots-grid">
-      ${timeSlots
-        .map((timeSlot) => {
-          const classes = ["time-slot"]
-          if (selectedTime === timeSlot) classes.push("selected")
-
-          return `
-          <div class="${classes.join(" ")}" onclick="selectTime('${timeSlot}')">
-            ${timeSlot}
-          </div>
-        `
-        })
-        .join("")}
-    </div>
-  `
+  updateConfirmBtn()
 }
 
 function isWithinBookingWindow(date, time) {
@@ -434,22 +556,63 @@ function isWithinBookingWindow(date, time) {
   const slotDateTime = new Date(date)
   const [hours, minutes] = time.split(":").map(Number)
   slotDateTime.setHours(hours, minutes, 0, 0)
-
-  // Vérifier seulement si le créneau est dans le futur
   return slotDateTime > now
+}
+
+function renderTimeSlotsGrid(availableSlots, container) {
+  const editId = getEditId()
+
+  console.log("renderTimeSlotsGrid called with slots:", availableSlots)
+  console.log("Current selectedTime:", selectedTime)
+  console.log("Edit mode:", !!editId)
+
+  container.innerHTML = `
+    <div class="time-slots-grid">
+      ${availableSlots
+        .map((timeSlot) => {
+          const classes = ["time-slot"]
+          if (selectedTime === timeSlot) classes.push("selected")
+
+          // Visual booked state (clickable in edit mode)
+          const isBooked = isTimeSlotBooked(selectedDate, timeSlot)
+          if (isBooked && editId) {
+            classes.push("booked")
+          }
+
+          const isClickable = !isBooked || editId
+          const clickHandler = isClickable ? `onclick="selectTime('${timeSlot}')" ` : ""
+
+          return `
+            <div class="${classes.join(" ")}" ${clickHandler}>
+              ${timeSlot}
+              ${isBooked && editId && selectedTime !== timeSlot ? '<div class="slot-status">Réservé</div>' : ''}
+            </div>
+          `
+        })
+        .join("")}
+    </div>
+  `
+  
+  // In edit mode, ensure the current appointment time is selected by default
+  if (editId && selectedTime && availableSlots.includes(selectedTime)) {
+    console.log("Edit mode: Current appointment time is available and should be selected:", selectedTime)
+  }
 }
 
 function isTimeSlotBooked(date, time) {
   const dateStr = formatDateISO(date)
+  const editId = getEditId()
 
   return appointments.some((apt) => {
     if (String(apt.doctorId) !== String(selectedDoctor.id)) return false
     if (apt.status === "CANCELED") return false
 
+    // Exclude the appointment being edited
+    if (editId && String(apt.id) === String(editId)) return false
+
     const aptStart = apt.start ? apt.start.substring(0, 10) : ""
     const aptTime = apt.start ? apt.start.substring(11, 16) : ""
 
-    // Check if appointment overlaps with slot (including 5-minute break)
     if (aptStart === dateStr) {
       const [aptHour, aptMin] = aptTime.split(":").map(Number)
       const [slotHour, slotMin] = time.split(":").map(Number)
@@ -458,10 +621,8 @@ function isTimeSlotBooked(date, time) {
       const slotStartMinutes = slotHour * 60 + slotMin
       const slotEndMinutes = slotStartMinutes + APPOINTMENT_DURATION
 
-      // Check overlap
       return slotStartMinutes < aptStartMinutes + APPOINTMENT_DURATION && slotEndMinutes > aptStartMinutes
     }
-
     return false
   })
 }
@@ -469,8 +630,7 @@ function isTimeSlotBooked(date, time) {
 function selectTime(time) {
   selectedTime = time
   renderTimeSlots()
-
-  document.getElementById("confirmTimeBtn").disabled = false
+  updateConfirmBtn()
 }
 
 function previousWeek() {
@@ -478,9 +638,9 @@ function previousWeek() {
   selectedDate = null
   selectedTime = null
   renderCalendar()
-  document.getElementById("timeSlots").innerHTML =
-    '<p class="placeholder">Sélectionnez une date pour voir les créneaux disponibles</p>'
-  document.getElementById("confirmTimeBtn").disabled = true
+  const ts = document.getElementById("timeSlots")
+  if (ts) ts.innerHTML = '<p class="placeholder">Sélectionnez une date pour voir les créneaux disponibles</p>'
+  updateConfirmBtn()
 }
 
 function nextWeek() {
@@ -488,9 +648,9 @@ function nextWeek() {
   selectedDate = null
   selectedTime = null
   renderCalendar()
-  document.getElementById("timeSlots").innerHTML =
-    '<p class="placeholder">Sélectionnez une date pour voir les créneaux disponibles</p>'
-  document.getElementById("confirmTimeBtn").disabled = true
+  const ts = document.getElementById("timeSlots")
+  if (ts) ts.innerHTML = '<p class="placeholder">Sélectionnez une date pour voir les créneaux disponibles</p>'
+  updateConfirmBtn()
 }
 
 // ========================================
@@ -509,7 +669,7 @@ function renderConfirmation() {
     </div>
     <div class="detail-row">
       <span class="detail-label">Médecin</span>
-      <span class="detail-value">Dr. ${escapeHtml(selectedDoctor?.firstName || "")} ${escapeHtml(selectedDoctor?.lastName || "")}</span>
+      <span class="detail-value">${escapeHtml(selectedDoctor?.fullName || "")}</span>
     </div>
     <div class="detail-row">
       <span class="detail-label">Date</span>
@@ -579,6 +739,7 @@ function setStep(step) {
   } else if (currentStep === 3) {
     renderCalendar()
     renderTimeSlots()
+    updateConfirmBtn()
   } else if (currentStep === 4) {
     renderConfirmation()
   }
@@ -595,112 +756,7 @@ function formatDateFull(date) {
   return date.toLocaleDateString("fr-FR", options)
 }
 
-// ========================================
-// Edit Mode - Load appointment for editing
-// ========================================
-function loadEditMode(appointment) {
-  // This ensures the doctor is always available for editing, even if inactive
-  let doctor = doctors.find((d) => d.id === appointment.doctorId)
-
-  if (!doctor && appointment.doctorName && appointment.doctorSpecialty) {
-    // Create a synthetic doctor entry from appointment data
-    doctor = {
-      id: appointment.doctorId,
-      fullName: appointment.doctorName,
-      firstName: appointment.doctorName.split(" ")[0] || "",
-      lastName: appointment.doctorName.split(" ").slice(1).join(" ") || "",
-      specialty: appointment.doctorSpecialty,
-      initials: appointment.doctorName
-        .split(" ")
-        .map((n) => n.charAt(0).toUpperCase())
-        .join(""),
-      color: "#10b981", // Default color
-    }
-    // Add the synthetic doctor to the list
-    doctors.push(doctor)
-    renderSpecialties()
-  }
-
-  // Step 1: Select specialty
-  selectedSpecialty = appointment.specialty || appointment.doctorSpecialty
-
-  // Step 2: Select doctor
-  if (!doctor) {
-    const sameSpecialtyDoctor = doctors.find((d) => d.specialty === selectedSpecialty)
-    if (sameSpecialtyDoctor) {
-      selectedDoctor = sameSpecialtyDoctor
-      showToast(
-        "Le médecin original n'est plus disponible. Un médecin de la même spécialité a été sélectionné.",
-        "warning",
-      )
-    } else {
-      showToast(
-        "Aucun médecin disponible pour cette spécialité. Veuillez sélectionner une nouvelle spécialité.",
-        "error",
-      )
-      // Go back to step 1 to let user select specialty and doctor
-      setStep(1)
-      return
-    }
-  } else {
-    selectedDoctor = doctor
-  }
-
-  // Step 3: Select date and time (only if we have a valid doctor)
-  if (selectedDoctor) {
-    selectedDate = new Date(appointment.appointmentDate + "T00:00:00")
-    selectedTime = appointment.startTime
-
-    // Pre-fill notes if available
-    if (appointment.notes) {
-      setTimeout(() => {
-        const notesField = document.getElementById("notes")
-        if (notesField) {
-          notesField.value = appointment.notes
-        }
-      }, 500)
-    }
-
-    // Update form to show we're editing
-    const formTitle = document.querySelector("#step4 h2")
-    if (formTitle) {
-      formTitle.textContent = "Modifier votre rendez-vous"
-    }
-
-    // Add hidden field for appointment ID to track editing
-    const finalForm = document.getElementById("finalForm")
-    if (finalForm) {
-      let editIdInput = document.getElementById("editAppointmentId")
-      if (!editIdInput) {
-        editIdInput = document.createElement("input")
-        editIdInput.type = "hidden"
-        editIdInput.name = "editAppointmentId"
-        editIdInput.id = "editAppointmentId"
-        finalForm.appendChild(editIdInput)
-      }
-      editIdInput.value = appointment.id
-
-      // Update submit button text for editing mode
-      const submitButton = finalForm.querySelector('button[type="submit"]')
-      if (submitButton) {
-        submitButton.textContent = "Confirmer la modification"
-        submitButton.classList.remove("btn-success")
-        submitButton.classList.add("btn-primary")
-      }
-    }
-
-    // Go to step 3 (calendar) to allow changing date/time
-    setStep(3)
-
-    setTimeout(() => {
-      const el = document.getElementById("timeSlots")
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" })
-    }, 300)
-  }
-}
-
 function showToast(message, type = "info") {
-  // Create toast notification
   const toast = document.createElement("div")
   toast.className = `toast toast-${type}`
   toast.textContent = message
@@ -716,9 +772,7 @@ function showToast(message, type = "info") {
     z-index: 10000;
     animation: slideIn 0.3s ease;
   `
-
   document.body.appendChild(toast)
-
   setTimeout(() => {
     toast.style.animation = "slideOut 0.3s ease"
     setTimeout(() => toast.remove(), 300)
@@ -738,4 +792,100 @@ function escapeHtml(text) {
   const div = document.createElement("div")
   div.textContent = text
   return div.innerHTML
+}
+
+// ========================================
+// Edit Mode - Load appointment for editing
+// ========================================
+function loadEditMode(appointment) {
+  let doctor = doctors.find((d) => d.id === appointment.doctorId)
+
+  // Step 1: Select specialty
+  selectedSpecialty = appointment.specialty || appointment.doctorSpecialty
+
+  // Step 2: Select doctor (fallback to same specialty or synthetic)
+  if (!doctor) {
+    let sameSpecialtyDoctor = doctors.find((d) => d.specialty === selectedSpecialty)
+    if (!sameSpecialtyDoctor) {
+      sameSpecialtyDoctor = doctors.find((d) => d.specialty &&
+        d.specialty.toLowerCase().trim() === selectedSpecialty.toLowerCase().trim())
+    }
+    if (!sameSpecialtyDoctor) {
+      sameSpecialtyDoctor = doctors.find((d) => d.specialty &&
+        d.specialty.toLowerCase().includes(selectedSpecialty.toLowerCase()))
+    }
+
+    if (sameSpecialtyDoctor) {
+      selectedDoctor = sameSpecialtyDoctor
+    } else {
+      selectedDoctor = {
+        id: appointment.doctorId,
+        fullName: appointment.doctorName || "Médecin",
+        specialty: selectedSpecialty,
+        initials: (appointment.doctorName || "M").split(" ").map(n => n.charAt(0).toUpperCase()).join(""),
+        color: "#10b981"
+      }
+    }
+  } else {
+    selectedDoctor = doctor
+  }
+
+  // Step 3: Date/Time
+  if (selectedDoctor) {
+    selectedDate = new Date(appointment.appointmentDate + "T00:00:00")
+    selectedTime = appointment.startTime
+
+    // Mémoriser la date/heure originales (pour préserver la sélection si on reclique sur le même jour)
+    originalEditDateISO = formatDateISO(selectedDate)
+    originalEditTime = selectedTime
+
+    // In edit mode, always start with the appointment date
+    // The backend will generate availabilities for this date
+    console.log("Edit mode: Setting date to appointment date", originalEditDateISO)
+    console.log("Edit mode: Setting time to appointment time", originalEditTime)
+
+    // Pre-fill notes if available
+    if (appointment.notes) {
+      setTimeout(() => {
+        const notesField = document.getElementById("notes")
+        if (notesField) notesField.value = appointment.notes
+      }, 300)
+    }
+
+    // UI edit mode
+    const formTitle = document.querySelector("#step4 h2")
+    if (formTitle) formTitle.textContent = "Modifier votre rendez-vous"
+
+    const finalForm = document.getElementById("finalForm")
+    if (finalForm) {
+      let editIdInput = document.getElementById("editAppointmentId")
+      if (!editIdInput) {
+        editIdInput = document.createElement("input")
+        editIdInput.type = "hidden"
+        editIdInput.name = "editAppointmentId"
+        editIdInput.id = "editAppointmentId"
+        finalForm.appendChild(editIdInput)
+      }
+      editIdInput.value = appointment.id
+
+      const submitButton = finalForm.querySelector('button[type="submit"]')
+      if (submitButton) {
+        submitButton.textContent = "Confirmer la modification"
+        submitButton.classList.remove("btn-success")
+        submitButton.classList.add("btn-primary")
+      }
+    }
+
+    // Re-initialize calendar for the appointment date
+    initializeCalendar()
+    
+    setStep(3)
+    setTimeout(() => {
+      renderCalendar()
+      renderTimeSlots()
+      updateConfirmBtn()
+      const el = document.getElementById("timeSlots")
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" })
+    }, 300)
+  }
 }

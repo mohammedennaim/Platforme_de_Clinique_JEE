@@ -141,33 +141,100 @@ public class AppointmentService {
             return List.of();
         }
 
+        System.out.println("getAllAvailabilityTimeSlotsForDoctor called for doctor " + doctorId + ", editMode: " + isEditMode);
+
         List<Availability> availabilities = availabilityRepository.findAvailabilitiesByDoctor(doctorId);
+        System.out.println("Found " + availabilities.size() + " availabilities for doctor " + doctorId);
+        
         List<AvailabilityTimeSlotsDTO> result = new java.util.ArrayList<>();
 
         for (Availability availability : availabilities) {
-            if (availability.getAvailabilityDate() == null ||
-                    availability.getStartTime() == null ||
-                    availability.getEndTime() == null) {
+            if (availability.getStartTime() == null || availability.getEndTime() == null) {
+                System.out.println("Skipping availability with null time fields: startTime=" + availability.getStartTime() + 
+                                 ", endTime=" + availability.getEndTime());
                 continue;
             }
 
-            List<Appointment> appointments = appointmentRepository.findByDoctorAndDate(
-                    doctorId,
-                    availability.getAvailabilityDate()
-            );
+            System.out.println("Processing availability: date=" + availability.getAvailabilityDate() + 
+                             ", startTime=" + availability.getStartTime() + ", endTime=" + availability.getEndTime());
 
-            AvailabilityTimeSlotsDTO dto =
-                    AppointmentMapper.toAvailabilityTimeSlotsDTO(
-                            availability,
-                            appointments,
-                            isEditMode
-                    );
+            // For recurring availabilities (date is null), we need to handle them differently
+            if (availability.getAvailabilityDate() == null) {
+                // This is a recurring availability, we'll use it for any date
+                System.out.println("Processing recurring availability");
+                
+                AvailabilityTimeSlotsDTO dto = AppointmentMapper.toAvailabilityTimeSlotsDTO(
+                        availability,
+                        new java.util.ArrayList<>(), // No appointments for recurring availability
+                        isEditMode
+                );
 
-            if (dto != null) {
-                result.add(dto);
+                if (dto != null) {
+                    System.out.println("Generated recurring DTO with " + (dto.getTimeSlots() != null ? dto.getTimeSlots().size() : 0) + " time slots");
+                    result.add(dto);
+                }
+            } else {
+                // This is a specific date availability
+                List<Appointment> appointments = appointmentRepository.findByDoctorAndDate(
+                        doctorId,
+                        availability.getAvailabilityDate()
+                );
+                
+                System.out.println("Found " + appointments.size() + " appointments for this date");
+
+                AvailabilityTimeSlotsDTO dto = AppointmentMapper.toAvailabilityTimeSlotsDTO(
+                        availability,
+                        appointments,
+                        isEditMode
+                );
+
+                if (dto != null) {
+                    System.out.println("Generated DTO with " + (dto.getTimeSlots() != null ? dto.getTimeSlots().size() : 0) + " time slots");
+                    result.add(dto);
+                } else {
+                    System.out.println("Failed to generate DTO for availability");
+                }
             }
         }
 
+        // If no availabilities found and we're in edit mode, create a default one
+        if (result.isEmpty() && isEditMode) {
+            System.out.println("No availabilities found for doctor " + doctorId + " in edit mode, creating default availability");
+            
+            // Create a default availability for today
+            java.time.LocalDate today = java.time.LocalDate.now();
+            java.time.LocalTime startTime = java.time.LocalTime.of(8, 0);
+            java.time.LocalTime endTime = java.time.LocalTime.of(18, 0);
+            
+            // Generate time slots
+            java.util.List<String> timeSlots = new java.util.ArrayList<>();
+            java.time.LocalTime currentTime = startTime;
+            while (currentTime.isBefore(endTime)) {
+                timeSlots.add(currentTime.toString().substring(0, 5));
+                currentTime = currentTime.plusMinutes(30);
+            }
+            
+            // Get doctor name
+            Doctor doctor = doctorRepository.findById(doctorId);
+            String doctorName = doctor != null ? 
+                (doctor.getTitle() != null ? doctor.getTitle() + " " : "") + 
+                doctor.getFirstName() + " " + doctor.getLastName() : "Médecin";
+            
+            org.example.clinique.dto.AvailabilityTimeSlotsDTO defaultAvailability = 
+                new org.example.clinique.dto.AvailabilityTimeSlotsDTO(
+                    doctorId,
+                    doctorName,
+                    today.toString(),
+                    startTime.toString(),
+                    endTime.toString(),
+                    timeSlots
+                );
+            
+            result.add(defaultAvailability);
+            System.out.println("Created default availability with " + timeSlots.size() + " time slots");
+        }
+
+        System.out.println("Returning " + result.size() + " availability DTOs for doctor " + doctorId);
         return result;
     }
 
